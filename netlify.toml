@@ -1,0 +1,12 @@
+# Build settings for Netlify.
+# This is a zero-build static site — Netlify just serves the folder as-is.
+[build]
+  publish = "."
+  command = ""
+
+# SPA-style fallback: the site swaps views in-page, but these are real
+# top-level routes if you later split them into pages. Safe to keep.
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200

@@ -1,0 +1,42 @@
+/* global React, Wordmark, Icon */
+function Footer({ setView }) {
+  const nav = [['Home', 'home'], ['Events', 'events'], ['Volunteer', 'volunteer'], ['Donate', 'donate']];
+  return (
+    <footer style={{ background: 'var(--surface)', borderTop: '1px solid var(--border)' }}>
+      <div style={{ maxWidth: 1140, margin: '0 auto', padding: '52px 28px 30px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', gap: 32, flexWrap: 'wrap', alignItems: 'flex-start' }}>
+          <div style={{ maxWidth: '34ch' }}>
+            <Wordmark height={28} />
+            <p style={{ fontSize: 14, color: 'var(--fg-muted)', marginTop: 14 }}>
+              Austin Texas UXR · CXR · HCI · HF. User experience research, usability, human factors — the people-people of ATX.
+            </p>
+          </div>
+          <div style={{ display: 'flex', gap: 48, flexWrap: 'wrap' }}>
+            <div>
+              <div style={{ fontFamily: 'var(--font-mono)', fontSize: 11, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--fg-subtle)', marginBottom: 14 }}>Explore</div>
+              <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: 10 }}>
+                {nav.map(([l, v]) => <li key={v}><a href="#" onClick={(e) => { e.preventDefault(); setView(v); window.scrollTo({ top: 0, behavior: 'smooth' }); }} style={{ fontSize: 14.5, color: 'var(--fg)' }}>{l}</a></li>)}
+              </ul>
+            </div>
+            <div>
+              <div style={{ fontFamily: 'var(--font-mono)', fontSize: 11, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--fg-subtle)', marginBottom: 14 }}>Connect</div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                {window.SOCIALS.map((s) => (
+                  <a key={s.label} href={s.href} target="_blank" rel="noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: 9, fontSize: 14.5, color: 'var(--fg)' }}>
+                    <span style={{ display: 'grid', placeItems: 'center', width: 30, height: 30, borderRadius: 'var(--radius-sm)', background: 'var(--surface-sunk)', color: 'var(--fg-muted)' }}><Icon name={s.icon} size={16} /></span>
+                    {s.label}
+                  </a>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+        <div style={{ marginTop: 40, paddingTop: 22, borderTop: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12, fontSize: 13, color: 'var(--fg-subtle)' }}>
+          <span>© 2026 ATX UXR · Austin UX Researchers</span>
+          <span style={{ fontFamily: 'var(--font-mono)', letterSpacing: '0.04em' }}>MADE WITH CARE IN AUSTIN, TX</span>
+        </div>
+      </div>
+    </footer>
+  );
+}
+window.Footer = Footer;

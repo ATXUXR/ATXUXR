@@ -1,0 +1,241 @@
+/* =============================================================
+   ATX UXR — Brand Refresh: Color & Type Foundations
+   "The people-people of ATX." Warm, human, research-grade.
+   -------------------------------------------------------------
+   Anchored on the original logo: flame orange + warm taupe-gray,
+   with the dome-skyline mark reframed as an Austin sunset.
+   -------------------------------------------------------------
+   Body/UI font: Inter (self-hosted, brand-supplied — see @font-face).
+   Display: Bricolage Grotesque · Mono: Space Mono (both Google Fonts).
+   ============================================================= */
+
+/* Load in <head> BEFORE this file (display + mono only; Inter is self-hosted):
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400..800&family=Space+Mono:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
+*/
+
+/* ---------- SELF-HOSTED BRAND FONT: INTER ---------- */
+@font-face {
+  font-family: 'Inter'; font-style: normal; font-weight: 400; font-display: swap;
+  src: url('fonts/Inter-Regular.ttf') format('truetype');
+}
+@font-face {
+  font-family: 'Inter'; font-style: normal; font-weight: 500; font-display: swap;
+  src: url('fonts/Inter-Medium.ttf') format('truetype');
+}
+@font-face {
+  font-family: 'Inter'; font-style: normal; font-weight: 600; font-display: swap;
+  src: url('fonts/Inter-SemiBold.ttf') format('truetype');
+}
+@font-face {
+  font-family: 'Inter'; font-style: normal; font-weight: 700; font-display: swap;
+  src: url('fonts/Inter-Bold.ttf') format('truetype');
+}
+
+:root {
+  /* ---------- BRAND CORE ---------- */
+  --atx-flame: #FD4B12;        /* original logo orange, hero accents only */
+  --atx-dome:  #756E6E;        /* original dome gray */
+  --atx-ink-logo: #534C51;     /* original wordmark gray */
+
+  /* ---------- ORANGE / "SUNSET" SCALE ---------- */
+  --orange-50:  #FFF2EC;
+  --orange-100: #FFE0D2;
+  --orange-200: #FFC3A9;
+  --orange-300: #FF9C72;
+  --orange-400: #F87545;
+  --orange-500: #EE4A1C;       /* PRIMARY — accessible on white & cream */
+  --orange-600: #D43C12;       /* hover */
+  --orange-700: #AE300E;       /* press / text-on-light */
+  --orange-800: #83250A;
+  --orange-900: #5A1A06;
+
+  /* ---------- WARM NEUTRALS (taupe-gray) ---------- */
+  --neutral-0:   #FFFFFF;
+  --neutral-50:  #F6F2EE;
+  --neutral-100: #EDE7E2;
+  --neutral-200: #E0D9D4;
+  --neutral-300: #C6BEBB;
+  --neutral-400: #A39B9C;
+  --neutral-500: #837B80;
+  --neutral-600: #6B6469;      /* muted text */
+  --neutral-700: #534C51;      /* logo gray */
+  --neutral-800: #3C373C;
+  --neutral-900: #2C282C;
+  --neutral-950: #211E22;      /* warm near-black, primary text */
+
+  /* ---------- SURFACES (warm paper, not stark white) ---------- */
+  --paper:        #F8F4EE;     /* page background */
+  --sand:         #F1EAE0;     /* sunken / alt section */
+  --paper-warm:   #FCFAF6;
+
+  /* ---------- SECONDARY: SPRING TEAL (Barton Springs / water) ---------- */
+  --teal-50:  #E4F2EE;
+  --teal-100: #C6E5DD;
+  --teal-300: #5FB7A6;
+  --teal-500: #0F7E6C;         /* secondary accent, data viz, links-alt */
+  --teal-700: #0A5749;
+  --teal-900: #07372F;
+
+  /* ---------- TERTIARY: HONEY (Texas sun, highlights) ---------- */
+  --honey-100: #FBEBCF;
+  --honey-300: #F2C879;
+  --honey-500: #E7A33C;        /* warnings, badges, marker-highlight */
+  --honey-700: #B47A1E;
+
+  /* ---------- SEMANTIC PALETTE ---------- */
+  --success:     #2F9E6A;
+  --success-bg:  #E0F2E8;
+  --warning:     var(--honey-500);
+  --warning-bg:  var(--honey-100);
+  --danger:      #B3261E;
+  --danger-bg:   #FBE3E0;
+  --info:        var(--teal-500);
+  --info-bg:     var(--teal-50);
+
+  /* ---------- SEMANTIC ROLES (light) ---------- */
+  --bg:            var(--paper);
+  --bg-alt:        var(--sand);
+  --surface:       var(--neutral-0);
+  --surface-sunk:  var(--sand);
+  --surface-ink:   var(--neutral-950);   /* dark sections */
+
+  --fg:            var(--neutral-950);
+  --fg-muted:      var(--neutral-600);
+  --fg-subtle:     var(--neutral-500);
+  --fg-on-dark:    #F7F2EC;
+  --fg-on-primary: #FFFFFF;
+
+  --primary:        var(--orange-500);
+  --primary-hover:  var(--orange-600);
+  --primary-press:  var(--orange-700);
+  --on-primary:     #FFFFFF;
+
+  --accent:        var(--teal-500);
+  --highlight:     var(--honey-500);
+  --link:          var(--orange-700);
+  --link-hover:    var(--orange-500);
+
+  --border:        var(--neutral-200);
+  --border-strong: var(--neutral-300);
+  --border-ink:    var(--neutral-950);
+  --ring:          color-mix(in srgb, var(--orange-500) 45%, transparent);
+
+  /* ---------- TYPOGRAPHY ---------- */
+  --font-display: 'Bricolage Grotesque', 'Inter', system-ui, sans-serif;
+  --font-sans:    'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-mono:    'Space Mono', ui-monospace, 'SFMono-Regular', Menlo, monospace;
+
+  /* fluid type scale (1.25 major-third, clamps for responsive) */
+  --text-eyebrow: 0.78rem;       /* mono, tracked, uppercase */
+  --text-xs:   0.75rem;
+  --text-sm:   0.875rem;
+  --text-base: 1rem;             /* 16px body floor */
+  --text-lg:   1.125rem;
+  --text-xl:   1.375rem;
+  --text-2xl:  clamp(1.5rem, 1.2rem + 1.4vw, 1.95rem);
+  --text-3xl:  clamp(1.95rem, 1.4rem + 2.4vw, 2.6rem);
+  --text-4xl:  clamp(2.6rem, 1.8rem + 3.6vw, 3.7rem);
+  --text-5xl:  clamp(3.3rem, 2rem + 5.6vw, 5.2rem);
+  --text-display: clamp(4rem, 2rem + 8vw, 7rem);
+
+  --leading-tight: 1.04;
+  --leading-snug:  1.18;
+  --leading-body:  1.6;
+  --tracking-tight: -0.02em;
+  --tracking-eyebrow: 0.16em;
+
+  /* ---------- SPACING (4px base) ---------- */
+  --space-1: 4px;   --space-2: 8px;   --space-3: 12px;  --space-4: 16px;
+  --space-5: 20px;  --space-6: 24px;  --space-8: 32px;  --space-10: 40px;
+  --space-12: 48px; --space-16: 64px; --space-20: 80px; --space-24: 96px;
+  --space-32: 128px;
+
+  /* ---------- RADII ---------- */
+  --radius-xs: 4px;  --radius-sm: 8px;  --radius-md: 12px; --radius-lg: 18px;
+  --radius-xl: 26px; --radius-2xl: 36px; --radius-pill: 999px;
+  --radius-dome: 999px 999px 0 0;   /* signature: half-dome echo of the mark */
+
+  /* ---------- ELEVATION (warm-tinted shadows) ---------- */
+  --shadow-xs:  0 1px 2px rgba(45, 32, 28, 0.06);
+  --shadow-sm:  0 2px 6px rgba(45, 32, 28, 0.08);
+  --shadow-md:  0 6px 18px rgba(45, 32, 28, 0.10);
+  --shadow-lg:  0 16px 40px rgba(45, 32, 28, 0.14);
+  --shadow-xl:  0 28px 70px rgba(45, 32, 28, 0.18);
+  --shadow-flame: 0 12px 30px rgba(238, 74, 28, 0.28);  /* glow on primary */
+
+  --transition: 180ms cubic-bezier(0.33, 1, 0.68, 1);
+  --transition-slow: 320ms cubic-bezier(0.33, 1, 0.68, 1);
+}
+
+/* =============================================================
+   SEMANTIC ELEMENT DEFAULTS
+   ============================================================= */
+body {
+  font-family: var(--font-sans);
+  font-size: var(--text-base);
+  line-height: var(--leading-body);
+  color: var(--fg);
+  background: var(--bg);
+  font-weight: 400;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+h1, h2, h3, h4, .display {
+  font-family: var(--font-display);
+  font-weight: 700;
+  line-height: var(--leading-tight);
+  letter-spacing: var(--tracking-tight);
+  color: var(--fg);
+  text-wrap: balance;
+  margin: 0;
+}
+.display { font-size: var(--text-display); font-weight: 800; }
+h1 { font-size: var(--text-5xl); }
+h2 { font-size: var(--text-4xl); }
+h3 { font-size: var(--text-3xl); font-weight: 700; }
+h4 { font-size: var(--text-2xl); line-height: var(--leading-snug); }
+
+h5, h6 {
+  font-family: var(--font-sans);
+  font-weight: 700;
+  line-height: var(--leading-snug);
+  letter-spacing: -0.01em;
+  margin: 0;
+}
+h5 { font-size: var(--text-xl); }
+h6 { font-size: var(--text-lg); }
+
+p { margin: 0 0 1em; max-width: 68ch; text-wrap: pretty; }
+.lead { font-size: var(--text-lg); color: var(--fg-muted); line-height: 1.5; }
+small, .text-sm { font-size: var(--text-sm); }
+.caption { font-size: var(--text-xs); color: var(--fg-subtle); }
+
+/* eyebrow / kicker — the research "field-note" mono tag */
+.eyebrow {
+  font-family: var(--font-mono);
+  font-size: var(--text-eyebrow);
+  font-weight: 700;
+  letter-spacing: var(--tracking-eyebrow);
+  text-transform: uppercase;
+  color: var(--primary);
+}
+
+a { color: var(--link); text-decoration: none; }
+a:hover { color: var(--link-hover); }
+
+code, kbd, samp, .mono {
+  font-family: var(--font-mono);
+  font-size: 0.9em;
+}
+code {
+  background: var(--surface-sunk);
+  border: 1px solid var(--border);
+  padding: 0.1em 0.4em;
+  border-radius: var(--radius-xs);
+}
+
+::selection { background: var(--orange-200); color: var(--neutral-950); }
+:focus-visible { outline: 3px solid var(--ring); outline-offset: 2px; }
