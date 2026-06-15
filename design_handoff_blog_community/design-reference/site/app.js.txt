@@ -1,0 +1,87 @@
+/* global React, ReactDOM, Nav, Home, Events, Simple, EventDetail, Footer, useStore, Store, AuthModal, Blog, Article, Contribute, Community, Profile, ProfileSetup, Admin, FeedbackWidget */
+function App() {
+  useStore();
+  const [view, setView] = React.useState('home');
+  const [event, setEvent] = React.useState(null);
+  const [post, setPost] = React.useState(null);
+  const [profileId, setProfileId] = React.useState(null);
+
+  // auth modal
+  const [authOpen, setAuthOpen] = React.useState(false);
+  const [authMode, setAuthMode] = React.useState('signup');
+  const pendingRef = React.useRef(null);
+
+  const user = Store.currentUser();
+
+  const top = (v) => { setView(v); window.scrollTo({ top: 0, behavior: 'smooth' }); };
+
+  const openEvent = (e) => { setEvent(e); setView('detail'); window.scrollTo({ top: 0, behavior: 'smooth' }); };
+  const openArticle = (p) => { setPost(p); setView('article'); if (p) window.Store.trackPostView(p.id); window.scrollTo({ top: 0 }); };
+  const openProfile = (id) => { setProfileId(id); setView('profile'); window.scrollTo({ top: 0 }); };
+  const editProfile = () => { setView('profile-edit'); window.scrollTo({ top: 0 }); };
+
+  const openAuth = (mode) => { setAuthMode(mode); setAuthOpen(true); };
+  // returns true if already authed (and runs cb); else opens auth and queues cb
+  const requireAuth = (cb) => {
+    if (Store.currentUser()) { cb && cb(); return true; }
+    pendingRef.current = cb || null;
+    openAuth('signup');
+    return false;
+  };
+  const goContribute = () => { if (requireAuth(() => top('contribute'))) top('contribute'); };
+
+  const onAuthed = (member, fresh) => {
+    if (fresh) { setView('profile-setup'); window.scrollTo({ top: 0 }); }
+    else { const cb = pendingRef.current; pendingRef.current = null; if (cb) cb(); }
+  };
+  const afterSetup = () => {
+    const cb = pendingRef.current; pendingRef.current = null;
+    if (cb) cb(); else { setProfileId(Store.currentUser().id); setView('profile'); }
+    window.scrollTo({ top: 0 });
+  };
+  const onLogout = () => { Store.logOut(); top('home'); };
+
+  // open article from a shared #/article/:id link
+  React.useEffect(() => {
+    const fromHash = () => {
+      const m = (window.location.hash || '').match(/#\/article\/(\w+)/);
+      if (m) { const p = Store.postById(m[1]); if (p) { setPost(p); setView('article'); } }
+    };
+    fromHash();
+    window.addEventListener('hashchange', fromHash);
+    return () => window.removeEventListener('hashchange', fromHash);
+  }, []);
+
+  React.useEffect(() => { if (window.lucide) window.lucide.createIcons(); });
+
+  // map detail/sub views to the active top-level nav highlight
+  const navView = ({ detail: 'events', article: 'blog', contribute: 'blog', profile: 'community',
+    'profile-setup': 'community', 'profile-edit': 'community' })[view] || view;
+
+  return (
+    <React.Fragment>
+      <Nav view={navView} setView={top} user={user} openAuth={openAuth} openProfile={openProfile}
+        editProfile={editProfile} goContribute={goContribute} onLogout={onLogout} />
+
+      {view === 'home' && <Home setView={top} openEvent={openEvent} />}
+      {view === 'events' && <Events openEvent={openEvent} />}
+      {view === 'detail' && <EventDetail event={event} setView={top} openEvent={openEvent} />}
+      {(view === 'volunteer' || view === 'donate') && <Simple kind={view} setView={top} />}
+
+      {view === 'blog' && <Blog openArticle={openArticle} setView={top} requireAuth={requireAuth} />}
+      {view === 'article' && <Article post={post} openArticle={openArticle} openProfile={openProfile} setView={top} />}
+      {view === 'contribute' && <Contribute setView={top} openProfile={openProfile} requireAuth={requireAuth} />}
+      {view === 'community' && <Community openProfile={openProfile} setView={top} requireAuth={requireAuth} />}
+      {view === 'profile' && <Profile memberId={profileId} setView={top} openArticle={openArticle} editProfile={editProfile} />}
+      {view === 'profile-setup' && <ProfileSetup setView={top} isSetup afterSave={afterSetup} />}
+      {view === 'profile-edit' && <ProfileSetup setView={top} isSetup={false} afterSave={() => openProfile(Store.currentUser().id)} />}
+      {view === 'admin' && <Admin setView={top} openProfile={openProfile} />}
+
+      <Footer setView={top} goContribute={goContribute} openAuth={openAuth} user={user} />
+
+      <AuthModal open={authOpen} mode={authMode} setMode={setAuthMode} onClose={() => setAuthOpen(false)} onAuthed={onAuthed} />
+      <FeedbackWidget page={view} />
+    </React.Fragment>
+  );
+}
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);

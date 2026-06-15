@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<!-- @dsCard group="Components" name="Website Recreation — austinuxresearchers.com" subtitle="Real ATX UXR site (Home/Events/Volunteer/Donate) restyled in the new system" viewport="1280x760" -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ATX UXR — The People-People of ATX</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400..800&family=Space+Mono:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../colors_and_type.css">
+<style>
+  html, body { margin: 0; }
+  #root { min-height: 100vh; }
+  @media (max-width: 860px) {
+    .nav-desktop { display: none !important; }
+    .nav-burger { display: inline-flex !important; }
+    .mission-grid, .types-grid { grid-template-columns: 1fr !important; }
+    .detail-grid { grid-template-columns: 1fr !important; }
+    .rsvp-card { position: static !important; }
+    .event-row { grid-template-columns: 84px 1fr !important; }
+    .event-cta { grid-column: 1 / -1; }
+    .blog-grid, .community-grid { grid-template-columns: 1fr !important; }
+    .blog-featured { grid-template-columns: 1fr !important; }
+    .profile-body { grid-template-columns: 1fr !important; }
+    .profile-posts { grid-template-columns: 1fr !important; }
+    .setup-row { grid-template-columns: 1fr !important; }
+    .admin-stats { grid-template-columns: 1fr !important; }
+    .admin-sub-row { grid-template-columns: 1fr !important; }
+    .admin-sub-cover { display: none; }
+    .admin-sub-actions { justify-content: flex-start !important; }
+  }
+  @media (min-width: 861px) and (max-width: 1080px) {
+    .blog-grid, .community-grid { grid-template-columns: repeat(2, 1fr) !important; }
+  }
+</style>
+</head>
+<body>
+  <div id="root"></div>
+  <script src="https://unpkg.com/react@18.3.1/umd/react.development.js.txt" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js.txt" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js.txt" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script type="text/babel" src="shared.js.txt"></script>
+  <script type="text/babel" src="store.js.txt"></script>
+  <script type="text/babel" src="ui.js.txt"></script>
+  <script type="text/babel" src="blocks.js.txt"></script>
+  <script type="text/babel" src="Nav.js.txt"></script>
+  <script type="text/babel" src="Home.js.txt"></script>
+  <script type="text/babel" src="Events.js.txt"></script>
+  <script type="text/babel" src="EventDetail.js.txt"></script>
+  <script type="text/babel" src="Simple.js.txt"></script>
+  <script type="text/babel" src="Auth.js.txt"></script>
+  <script type="text/babel" src="Blog.js.txt"></script>
+  <script type="text/babel" src="Article.js.txt"></script>
+  <script type="text/babel" src="Contribute.js.txt"></script>
+  <script type="text/babel" src="Community.js.txt"></script>
+  <script type="text/babel" src="Profile.js.txt"></script>
+  <script type="text/babel" src="Admin.js.txt"></script>
+  <script type="text/babel" src="Feedback.js.txt"></script>
+  <script type="text/babel" src="Footer.js.txt"></script>
+  <script type="text/babel" src="app.js.txt"></script>
+</body>
+</html>

@@ -1,0 +1,576 @@
+/* global React, Store, useStore, Avatar, Tag, Btn, Icon, Eyebrow, fmtDate, PostCover, toneForTag */
+// ATX UXR — Admin dashboard: overview, submission review queue, member management.
+
+function Stat({ icon, value, label, tone }) {
+  const tones = { flame: { bg: 'var(--orange-50)', fg: 'var(--orange-700)' }, teal: { bg: 'var(--teal-50)', fg: 'var(--teal-700)' }, honey: { bg: 'var(--honey-100)', fg: 'var(--honey-700)' } }[tone];
+  return (
+    <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)', padding: '22px 24px', display: 'flex', alignItems: 'center', gap: 16, boxShadow: 'var(--shadow-sm)' }}>
+      <span style={{ display: 'grid', placeItems: 'center', width: 50, height: 50, borderRadius: 'var(--radius-md)', background: tones.bg, color: tones.fg, flex: 'none' }}><Icon name={icon} size={24} /></span>
+      <div>
+        <div style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 30, lineHeight: 1, color: 'var(--fg)' }}>{value}</div>
+        <div style={{ fontSize: 13.5, color: 'var(--fg-muted)', marginTop: 4 }}>{label}</div>
+      </div>
+    </div>
+  );
+}
+
+function SubmissionRow({ post, onPreview }) {
+  const author = Store.memberById(post.authorId);
+  return (
+    <div style={{ display: 'grid', gridTemplateColumns: '120px 1fr auto', gap: 20, alignItems: 'center', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)', padding: '16px 18px', boxShadow: 'var(--shadow-sm)' }} className="admin-sub-row">
+      <div style={{ borderRadius: 'var(--radius-md)', overflow: 'hidden' }} className="admin-sub-cover"><PostCover post={post} height={72} radius="var(--radius-md)" flat /></div>
+      <div style={{ minWidth: 0 }}>
+        <div style={{ display: 'flex', gap: 7, marginBottom: 6, flexWrap: 'wrap' }}>{post.tags.slice(0, 3).map((t) => <Tag key={t} tone={toneForTag(t)} style={{ fontSize: 9.5 }}>{t}</Tag>)}</div>
+        <h3 style={{ fontSize: 17, margin: '0 0 5px', lineHeight: 1.2 }}>{post.title}</h3>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: 'var(--fg-muted)' }}>
+          <Avatar member={author} size={20} /> {author ? author.name : 'Unknown'} · {fmtDate(post.date)} · {post.readMins} min
+        </div>
+      </div>
+      <div style={{ display: 'flex', gap: 9, flexWrap: 'wrap', justifyContent: 'flex-end' }} className="admin-sub-actions">
+        <Btn variant="secondary" size="sm" icon="eye" onClick={() => onPreview(post)}>Preview</Btn>
+        <Btn variant="secondary" size="sm" icon="x" onClick={() => { if (window.confirm('Reject and delete this submission?')) Store.deletePost(post.id); }} style={{ color: 'var(--danger)' }}>Reject</Btn>
+        <Btn variant="primary" size="sm" icon="check" onClick={() => Store.setPostStatus(post.id, 'published')}>Approve</Btn>
+      </div>
+    </div>
+  );
+}
+
+function PreviewModal({ post, onClose }) {
+  if (!post) return null;
+  const author = Store.memberById(post.authorId);
+  return (
+    <div onClick={onClose} style={{ position: 'fixed', inset: 0, zIndex: 200, background: 'rgba(33,30,34,0.5)', backdropFilter: 'blur(4px)', overflowY: 'auto', padding: 20 }}>
+      <div onClick={(e) => e.stopPropagation()} style={{ background: 'var(--surface)', borderRadius: 'var(--radius-xl)', boxShadow: 'var(--shadow-xl)', maxWidth: 720, margin: '20px auto', overflow: 'hidden', position: 'relative' }}>
+        <button onClick={onClose} aria-label="Close" style={{ position: 'absolute', top: 16, right: 16, zIndex: 2, display: 'grid', placeItems: 'center', width: 36, height: 36, borderRadius: '50%', border: 'none', cursor: 'pointer', background: 'rgba(255,255,255,0.9)', color: 'var(--fg)' }}><Icon name="x" size={18} /></button>
+        <PostCover post={post} height={200} radius="0" flat />
+        <div style={{ padding: '28px 34px 34px' }}>
+          <div style={{ display: 'flex', gap: 7, marginBottom: 14, flexWrap: 'wrap' }}>{post.tags.map((t) => <Tag key={t} tone={toneForTag(t)} style={{ fontSize: 10 }}>{t}</Tag>)}</div>
+          <h1 style={{ fontSize: 30, margin: '0 0 12px', lineHeight: 1.1 }}>{post.title}</h1>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 22, color: 'var(--fg-muted)', fontSize: 14 }}>
+            <Avatar member={author} size={32} /> {author ? author.name : 'Unknown'} · {fmtDate(post.date)}
+          </div>
+          <style>{window.PROSE_CSS}</style>
+          <div className="atx-prose" style={{ fontSize: 17 }} dangerouslySetInnerHTML={{ __html: post.body }} />
+          <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end', marginTop: 28, paddingTop: 22, borderTop: '1px solid var(--border)' }}>
+            <Btn variant="secondary" icon="x" onClick={() => { if (window.confirm('Reject and delete this submission?')) { Store.deletePost(post.id); onClose(); } }} style={{ color: 'var(--danger)' }}>Reject</Btn>
+            <Btn variant="primary" icon="check" onClick={() => { Store.setPostStatus(post.id, 'published'); onClose(); }}>Approve &amp; publish</Btn>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+const ROLE_OPTIONS = ['Member', 'Organizer', 'Founder & Lead Organizer', 'Senior UX Researcher', 'UX Research Lead', 'Staff Researcher', 'Design Researcher', 'Junior UX Researcher'];
+
+function MemberAdminRow({ member, isSelf, openProfile }) {
+  return (
+    <tr style={{ borderBottom: '1px solid var(--border)' }}>
+      <td style={{ padding: '14px 16px' }}>
+        <button type="button" onClick={() => openProfile(member.id)} style={{ display: 'flex', alignItems: 'center', gap: 12, background: 'none', border: 'none', cursor: 'pointer', padding: 0, textAlign: 'left' }}>
+          <Avatar member={member} size={40} />
+          <div>
+            <div style={{ fontSize: 14.5, fontWeight: 600, color: 'var(--fg)' }}>{member.name || '—'} {isSelf && <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--primary)' }}>(you)</span>}</div>
+            <div style={{ fontSize: 12.5, color: 'var(--fg-subtle)' }}>{member.email}</div>
+          </div>
+        </button>
+      </td>
+      <td style={{ padding: '14px 16px' }}>
+        <select value={ROLE_OPTIONS.includes(member.role) ? member.role : 'Member'} onChange={(e) => Store.setMemberRole(member.id, e.target.value)}
+          style={{ fontFamily: 'var(--font-sans)', fontSize: 13.5, padding: '8px 12px', borderRadius: 'var(--radius-sm)', border: '1.5px solid var(--border-strong)', background: 'var(--surface)', color: 'var(--fg)', maxWidth: 200 }}>
+          {ROLE_OPTIONS.map((r) => <option key={r} value={r}>{r}</option>)}
+        </select>
+      </td>
+      <td style={{ padding: '14px 16px', textAlign: 'center' }}>
+        <button type="button" onClick={() => Store.setAdmin(member.id, !member.admin)} disabled={isSelf}
+          title={isSelf ? 'You can’t change your own admin status' : ''}
+          style={{ position: 'relative', width: 44, height: 24, borderRadius: 999, border: 'none', cursor: isSelf ? 'not-allowed' : 'pointer', opacity: isSelf ? 0.5 : 1,
+            background: member.admin ? 'var(--primary)' : 'var(--border-strong)', transition: 'var(--transition)' }}>
+          <span style={{ position: 'absolute', top: 3, left: member.admin ? 23 : 3, width: 18, height: 18, borderRadius: '50%', background: '#fff', transition: 'var(--transition)' }} />
+        </button>
+      </td>
+      <td style={{ padding: '14px 16px', textAlign: 'right' }}>
+        <button type="button" onClick={() => { if (!isSelf && window.confirm(`Remove ${member.name} from the community?`)) Store.removeMember(member.id); }} disabled={isSelf}
+          style={{ display: 'inline-grid', placeItems: 'center', width: 34, height: 34, borderRadius: 'var(--radius-sm)', border: 'none', cursor: isSelf ? 'not-allowed' : 'pointer', opacity: isSelf ? 0.35 : 1, background: 'transparent', color: 'var(--danger)' }}><Icon name="trash-2" size={17} /></button>
+      </td>
+    </tr>
+  );
+}
+
+function Admin({ setView, openProfile }) {
+  useStore();
+  React.useEffect(() => { window.scrollTo({ top: 0 }); }, []);
+  const me = Store.currentUser();
+  const [tab, setTab] = React.useState('insights');
+  const [preview, setPreview] = React.useState(null);
+
+  if (!me || !me.admin) {
+    return (
+      <section style={{ background: 'var(--bg)', minHeight: '60vh', display: 'grid', placeItems: 'center', padding: 40 }}>
+        <div style={{ textAlign: 'center', maxWidth: 420 }}>
+          <span style={{ display: 'inline-grid', placeItems: 'center', width: 64, height: 64, borderRadius: '50%', background: 'var(--danger-bg)', color: 'var(--danger)', marginBottom: 18 }}><Icon name="shield-x" size={30} /></span>
+          <h2 style={{ fontSize: 26, margin: '0 0 10px' }}>Organizers only</h2>
+          <p style={{ fontSize: 16, color: 'var(--fg-muted)', margin: '0 0 22px' }}>This area is restricted to community organizers.</p>
+          <Btn variant="secondary" onClick={() => setView('home')}>Back home</Btn>
+        </div>
+      </section>
+    );
+  }
+
+  const pending = Store.pendingPosts();
+  const published = Store.publishedPosts();
+  const members = Store.state.members;
+  const signups = Store.signups();
+  const events = Store.sortedEvents();
+  const rsvps = Store.allRsvps();
+  const volunteers = Store.volunteers();
+  const emails = Store.emails();
+  const feedback = Store.feedbackList();
+  const tabs = [
+    ['insights', 'Insights', null],
+    ['submissions', 'Submissions', pending.length],
+    ['members', 'Members', members.length],
+    ['signups', 'Sign-ups', signups.length],
+    ['rsvps', 'RSVPs', rsvps.length],
+    ['volunteers', 'Volunteers', volunteers.length],
+    ['email', 'Email', emails.length],
+    ['feedback', 'Feedback', feedback.length],
+    ['posts', 'Published', published.length],
+  ];
+
+  return (
+    <React.Fragment>
+      <section style={{ background: 'var(--neutral-950)', color: 'var(--fg-on-dark)' }}>
+        <div style={{ maxWidth: 1140, margin: '0 auto', padding: '40px 28px 30px' }}>
+          <Eyebrow style={{ marginBottom: 12, color: 'var(--orange-300)' }}>ADMIN · ORGANIZER TOOLS</Eyebrow>
+          <h1 style={{ fontSize: 'clamp(2rem, 1.5rem + 1.8vw, 2.9rem)', color: '#fff', margin: '0 0 26px' }}>Community dashboard</h1>
+          <div className="admin-stats" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16 }}>
+            <Stat icon="users" value={members.length} label="Community members" tone="teal" />
+            <Stat icon="inbox" value={pending.length} label="Awaiting review" tone="flame" />
+            <Stat icon="file-text" value={published.length} label="Published posts" tone="honey" />
+          </div>
+        </div>
+      </section>
+
+      <section style={{ background: 'var(--surface)', borderBottom: '1px solid var(--border)', position: 'sticky', top: 73, zIndex: 20 }}>
+        <div style={{ maxWidth: 1140, margin: '0 auto', padding: '0 28px', display: 'flex', gap: 4, overflowX: 'auto' }}>
+          {tabs.map(([key, label, count]) => {
+            const on = tab === key;
+            return (
+              <button type="button" key={key} onClick={() => setTab(key)} style={{ position: 'relative', display: 'inline-flex', alignItems: 'center', gap: 8, padding: '18px 18px', background: 'none', border: 'none', cursor: 'pointer', fontSize: 15, fontWeight: 600, whiteSpace: 'nowrap', color: on ? 'var(--primary)' : 'var(--fg-muted)' }}>
+                {label}
+                {count != null && <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, fontWeight: 700, padding: '2px 7px', borderRadius: 999, background: on ? 'var(--orange-50)' : 'var(--surface-sunk)', color: on ? 'var(--orange-700)' : 'var(--fg-subtle)' }}>{count}</span>}
+                {on && <span style={{ position: 'absolute', left: 12, right: 12, bottom: 0, height: 2.5, background: 'var(--primary)', borderRadius: 2 }} />}
+              </button>
+            );
+          })}
+        </div>
+      </section>
+
+      <section style={{ background: 'var(--bg)', minHeight: '40vh' }}>
+        <div style={{ maxWidth: 1140, margin: '0 auto', padding: '34px 28px 80px' }}>
+          {tab === 'insights' && <InsightsTab />}
+
+          {tab === 'submissions' && (
+            pending.length === 0 ? (
+              <EmptyState icon="inbox" title="Inbox zero ✨" body="No submissions waiting for review. New contributions will appear here." />
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                {pending.map((p) => <SubmissionRow key={p.id} post={p} onPreview={setPreview} />)}
+              </div>
+            )
+          )}
+
+          {tab === 'members' && (
+            <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)', overflow: 'hidden', boxShadow: 'var(--shadow-sm)' }}>
+              <div style={{ overflowX: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 600 }}>
+                  <thead>
+                    <tr style={{ background: 'var(--bg)', borderBottom: '1px solid var(--border)' }}>
+                      {['Member', 'Role', 'Organizer', ''].map((h, i) => <th key={i} style={{ textAlign: i === 2 ? 'center' : i === 3 ? 'right' : 'left', padding: '13px 16px', fontFamily: 'var(--font-mono)', fontSize: 11, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--fg-subtle)', fontWeight: 700 }}>{h}</th>)}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {members.map((m) => <MemberAdminRow key={m.id} member={m} isSelf={m.id === me.id} openProfile={openProfile} />)}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {tab === 'signups' && (
+            signups.length === 0 ? (
+              <EmptyState icon="mail" title="No sign-ups yet" body="Mailing-list sign-ups from across the site will show up here." />
+            ) : (
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginBottom: 16, flexWrap: 'wrap' }}>
+                  <div style={{ fontSize: 14, color: 'var(--fg-muted)' }}>{signups.length} {signups.length === 1 ? 'person' : 'people'} on the mailing list</div>
+                  <Btn variant="secondary" size="sm" icon="download" onClick={() => downloadCSV('atxuxr-mailing-list.csv', [['Name', 'Email', 'Source', 'Date'], ...signups.map((s) => [s.name, s.email, s.source, s.date])])}>Export CSV</Btn>
+                </div>
+                <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)', overflow: 'hidden', boxShadow: 'var(--shadow-sm)' }}>
+                  <div style={{ overflowX: 'auto' }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 560 }}>
+                      <thead><tr style={{ background: 'var(--bg)', borderBottom: '1px solid var(--border)' }}>
+                        {['Name', 'Email', 'Source', 'Joined'].map((h, i) => <th key={i} style={{ textAlign: 'left', padding: '13px 16px', fontFamily: 'var(--font-mono)', fontSize: 11, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--fg-subtle)', fontWeight: 700 }}>{h}</th>)}
+                      </tr></thead>
+                      <tbody>
+                        {signups.map((s) => (
+                          <tr key={s.id} style={{ borderBottom: '1px solid var(--border)' }}>
+                            <td style={{ padding: '13px 16px', fontSize: 14.5, fontWeight: 600, color: 'var(--fg)' }}>{s.name || '\u2014'}</td>
+                            <td style={{ padding: '13px 16px', fontSize: 14, color: 'var(--fg-muted)' }}>{s.email}</td>
+                            <td style={{ padding: '13px 16px' }}><Tag tone="teal" style={{ fontSize: 9.5 }}>{s.source}</Tag></td>
+                            <td style={{ padding: '13px 16px', fontSize: 13.5, color: 'var(--fg-subtle)' }}>{fmtDate(s.date)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+            )
+          )}
+
+          {tab === 'rsvps' && (
+            rsvps.length === 0 ? (
+              <EmptyState icon="calendar-check" title="No RSVPs yet" body="When people RSVP to an event, their guest list shows up here." />
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+                {events.filter((ev) => Store.rsvpsForEvent(ev.id).length > 0).map((ev) => {
+                  const list = Store.rsvpsForEvent(ev.id);
+                  const total = list.reduce((n, r) => n + (r.guests || 1), 0);
+                  return (
+                    <div key={ev.id} style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)', overflow: 'hidden', boxShadow: 'var(--shadow-sm)' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, padding: '16px 20px', borderBottom: '1px solid var(--border)', background: 'var(--bg)', flexWrap: 'wrap' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                          <Tag tone={toneForTag(ev.kind)} style={{ fontSize: 9.5 }}>{ev.kind}</Tag>
+                          <span style={{ fontSize: 16, fontWeight: 700, color: 'var(--fg)' }}>{ev.title}</span>
+                          <span style={{ fontSize: 13, color: 'var(--fg-subtle)', fontFamily: 'var(--font-mono)' }}>{ev.date}, {ev.year}</span>
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                          <span style={{ fontFamily: 'var(--font-mono)', fontSize: 12, fontWeight: 700, color: 'var(--teal-700)', background: 'var(--teal-50)', padding: '4px 10px', borderRadius: 999 }}>{total} going</span>
+                          <Btn variant="secondary" size="sm" icon="download" onClick={() => downloadCSV('rsvps-' + ev.id + '.csv', [['Name', 'Email', 'Guests', 'Date'], ...list.map((r) => [r.name, r.email, r.guests, r.date])])}>CSV</Btn>
+                        </div>
+                      </div>
+                      <div style={{ overflowX: 'auto' }}>
+                        <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 520 }}>
+                          <tbody>
+                            {list.map((r) => (
+                              <tr key={r.id} style={{ borderBottom: '1px solid var(--border)' }}>
+                                <td style={{ padding: '12px 20px', fontSize: 14.5, fontWeight: 600, color: 'var(--fg)' }}>{r.name || '\u2014'}</td>
+                                <td style={{ padding: '12px 16px', fontSize: 14, color: 'var(--fg-muted)' }}>{r.email}</td>
+                                <td style={{ padding: '12px 16px', fontSize: 13.5, color: 'var(--fg-muted)' }}>{r.guests > 1 ? r.guests + ' guests' : '1 guest'}</td>
+                                <td style={{ padding: '12px 20px', fontSize: 13.5, color: 'var(--fg-subtle)', textAlign: 'right' }}>{fmtDate(r.date)}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )
+          )}
+
+          {tab === 'volunteers' && <VolunteersTab />}
+
+          {tab === 'email' && <EmailTab />}
+
+          {tab === 'feedback' && <FeedbackTab />}
+
+          {tab === 'posts' && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              {published.map((p) => {
+                const author = Store.memberById(p.authorId);
+                return (
+                  <div key={p.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius-md)', padding: '14px 18px', flexWrap: 'wrap' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0 }}>
+                      <Avatar member={author} size={32} />
+                      <div style={{ minWidth: 0 }}>
+                        <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--fg)' }}>{p.title}</div>
+                        <div style={{ fontSize: 12.5, color: 'var(--fg-subtle)' }}>{author ? author.name : 'Unknown'} · {fmtDate(p.date)}</div>
+                      </div>
+                    </div>
+                    <div style={{ display: 'flex', gap: 9 }}>
+                      <Btn variant="secondary" size="sm" icon="eye" onClick={() => setPreview(p)}>Preview</Btn>
+                      <Btn variant="secondary" size="sm" icon="archive" onClick={() => { if (window.confirm('Unpublish this post (move back to pending)?')) Store.setPostStatus(p.id, 'pending'); }}>Unpublish</Btn>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      </section>
+
+      <PreviewModal post={preview} onClose={() => setPreview(null)} />
+    </React.Fragment>
+  );
+}
+
+function downloadCSV(filename, rows) {
+  const esc = (v) => '"' + String(v == null ? '' : v).replace(/"/g, '""') + '"';
+  const csv = rows.map((r) => r.map(esc).join(',')).join('\r\n');
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+function EmptyState({ icon, title, body }) {  return (
+    <div style={{ textAlign: 'center', padding: '70px 20px', color: 'var(--fg-muted)' }}>
+      <span style={{ display: 'inline-grid', placeItems: 'center', width: 60, height: 60, borderRadius: '50%', background: 'var(--success-bg)', color: 'var(--success)', marginBottom: 8 }}><Icon name={icon} size={28} /></span>
+      <h3 style={{ fontSize: 22, margin: '12px 0 6px', color: 'var(--fg)' }}>{title}</h3>
+      <p style={{ margin: 0, maxWidth: '40ch', marginLeft: 'auto', marginRight: 'auto' }}>{body}</p>
+    </div>
+  );
+}
+
+function fmtNum(n) { return n >= 1000 ? (n / 1000).toFixed(n >= 10000 ? 0 : 1) + 'k' : String(n); }
+
+function InsightsTab() {
+  const S = window.Store;
+  const a = S.analytics();
+  const published = S.publishedPosts();
+  const sources = a.sources || [];
+  const totalSrc = sources.reduce((n, s) => n + s.value, 0) || 1;
+  const weekly = a.weekly || [];
+  const maxWeek = Math.max(...weekly.map((w) => w.visits), 1);
+  const devices = a.devices || [];
+  const top = published.map((p) => ({ p, ...S.postEngagement(p.id) })).sort((x, y) => y.score - x.score);
+  const maxScore = Math.max(...top.map((t) => t.score), 1);
+
+  const kpis = [
+    { label: 'Visits', value: fmtNum(a.visits || 0), sub: 'last 8 weeks', icon: 'mouse-pointer-click', tone: { bg: 'var(--orange-50)', fg: 'var(--orange-700)' } },
+    { label: 'Unique visitors', value: fmtNum(a.uniqueVisitors || 0), sub: (a.returning || 0) + '% returning', icon: 'users', tone: { bg: 'var(--teal-50)', fg: 'var(--teal-700)' } },
+    { label: 'Avg. time on site', value: (a.avgMinutes || 0) + ' min', sub: (a.bounceRate || 0) + '% bounce', icon: 'timer', tone: { bg: 'var(--honey-100)', fg: 'var(--honey-700)' } },
+    { label: 'Page views', value: fmtNum(a.pageviews || 0), sub: 'all pages', icon: 'eye', tone: { bg: 'var(--orange-50)', fg: 'var(--orange-700)' } },
+  ];
+  const cardBox = { background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)', padding: '22px 24px', boxShadow: 'var(--shadow-sm)' };
+  const cardTitle = { fontSize: 15, margin: '0 0 18px', fontFamily: 'var(--font-mono)', fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--fg-subtle)' };
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 22 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))', gap: 16 }}>
+        {kpis.map((k) => (
+          <div key={k.label} style={cardBox}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <span style={{ display: 'grid', placeItems: 'center', width: 42, height: 42, borderRadius: 'var(--radius-md)', background: k.tone.bg, color: k.tone.fg }}><Icon name={k.icon} size={20} /></span>
+            </div>
+            <div style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 34, lineHeight: 1, color: 'var(--fg)', marginTop: 16 }}>{k.value}</div>
+            <div style={{ fontSize: 14, color: 'var(--fg)', fontWeight: 600, marginTop: 6 }}>{k.label}</div>
+            <div style={{ fontSize: 12.5, color: 'var(--fg-subtle)', marginTop: 2 }}>{k.sub}</div>
+          </div>
+        ))}
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 22 }}>
+        <div style={cardBox}>
+          <h3 style={cardTitle}>Where visitors come from</h3>
+          {sources.map((s) => {
+            const pct = Math.round((s.value / totalSrc) * 100);
+            return (
+              <div key={s.name} style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 13 }}>
+                <span style={{ width: 92, fontSize: 13.5, color: 'var(--fg-muted)', flex: 'none' }}>{s.name}</span>
+                <div style={{ flex: 1, height: 10, borderRadius: 999, background: 'var(--surface-sunk)', overflow: 'hidden' }}><div style={{ width: pct + '%', height: '100%', background: 'var(--primary)', borderRadius: 999 }} /></div>
+                <span style={{ width: 38, textAlign: 'right', fontFamily: 'var(--font-mono)', fontSize: 12.5, fontWeight: 700, color: 'var(--fg)' }}>{pct}%</span>
+              </div>
+            );
+          })}
+          <div style={{ display: 'flex', gap: 8, marginTop: 18, paddingTop: 16, borderTop: '1px solid var(--border)', flexWrap: 'wrap' }}>
+            {devices.map((d) => (
+              <span key={d.name} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12.5, color: 'var(--fg-muted)', background: 'var(--surface-sunk)', padding: '6px 11px', borderRadius: 999 }}>
+                <Icon name={d.name === 'Desktop' ? 'monitor' : d.name === 'Mobile' ? 'smartphone' : 'tablet'} size={14} /> {d.name} <strong style={{ color: 'var(--fg)' }}>{d.value}%</strong>
+              </span>
+            ))}
+          </div>
+        </div>
+
+        <div style={cardBox}>
+          <h3 style={cardTitle}>Visits over time</h3>
+          <div style={{ display: 'flex', alignItems: 'flex-end', gap: 8, height: 150 }}>
+            {weekly.map((w) => (
+              <div key={w.label} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
+                <div style={{ width: '100%', display: 'flex', alignItems: 'flex-end', height: 118 }}>
+                  <div title={w.visits + ' visits'} style={{ width: '100%', height: Math.max(4, Math.round((w.visits / maxWeek) * 118)) + 'px', background: 'linear-gradient(180deg, var(--orange-400), var(--primary))', borderRadius: '6px 6px 0 0' }} />
+                </div>
+                <span style={{ fontFamily: 'var(--font-mono)', fontSize: 9.5, color: 'var(--fg-subtle)', whiteSpace: 'nowrap' }}>{w.label}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      <div style={cardBox}>
+        <h3 style={cardTitle}>Top posts by engagement</h3>
+        <div style={{ overflowX: 'auto' }}>
+          <div style={{ minWidth: 560 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 64px 70px 80px 130px', gap: 12, padding: '0 0 10px', borderBottom: '1px solid var(--border)' }}>
+              {['Post', 'Views', 'Reacts', 'Comments', 'Engagement'].map((h, i) => <span key={h} style={{ fontFamily: 'var(--font-mono)', fontSize: 10.5, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--fg-subtle)', fontWeight: 700, textAlign: i === 0 ? 'left' : 'right' }}>{h}</span>)}
+            </div>
+            {top.map((t) => (
+              <div key={t.p.id} style={{ display: 'grid', gridTemplateColumns: '1fr 64px 70px 80px 130px', gap: 12, alignItems: 'center', padding: '13px 0', borderBottom: '1px solid var(--border)' }}>
+                <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--fg)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.p.title}</span>
+                <span style={{ textAlign: 'right', fontFamily: 'var(--font-mono)', fontSize: 13, color: 'var(--fg)' }}>{fmtNum(t.views)}</span>
+                <span style={{ textAlign: 'right', fontFamily: 'var(--font-mono)', fontSize: 13, color: 'var(--fg-muted)' }}>{t.reacts}</span>
+                <span style={{ textAlign: 'right', fontFamily: 'var(--font-mono)', fontSize: 13, color: 'var(--fg-muted)' }}>{t.comments}</span>
+                <div style={{ height: 8, borderRadius: 999, background: 'var(--surface-sunk)', overflow: 'hidden' }}><div style={{ width: Math.round((t.score / maxScore) * 100) + '%', height: '100%', background: 'var(--teal-500)', borderRadius: 999 }} /></div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12.5, color: 'var(--fg-subtle)' }}>
+        <Icon name="info" size={14} /> Traffic, time-on-site and source figures are sample analytics; post views, reactions and comments are live from the site. Wire to your analytics provider at deploy.
+      </div>
+    </div>
+  );
+}
+
+function VolunteersTab() {
+  const list = window.Store.volunteers();
+  if (list.length === 0) return <EmptyState icon="hand-heart" title="No volunteers yet" body="When people sign up to volunteer, they'll show up here." />;
+  return (
+    <div>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginBottom: 16, flexWrap: 'wrap' }}>
+        <div style={{ fontSize: 14, color: 'var(--fg-muted)' }}>{list.length} {list.length === 1 ? 'volunteer' : 'volunteers'} signed up</div>
+        <Btn variant="secondary" size="sm" icon="download" onClick={() => downloadCSV('atxuxr-volunteers.csv', [['Name', 'Email', 'Company', 'Position', 'Interest', 'Date'], ...list.map((v) => [v.name, v.email, v.company, v.position, v.role, v.date])])}>Export CSV</Btn>
+      </div>
+      <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)', overflow: 'hidden', boxShadow: 'var(--shadow-sm)' }}>
+        <div style={{ overflowX: 'auto' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 680 }}>
+            <thead><tr style={{ background: 'var(--bg)', borderBottom: '1px solid var(--border)' }}>
+              {['Name', 'Email', 'Company / role', 'How they want to help', 'Date'].map((h) => <th key={h} style={{ textAlign: 'left', padding: '13px 16px', fontFamily: 'var(--font-mono)', fontSize: 11, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--fg-subtle)', fontWeight: 700 }}>{h}</th>)}
+            </tr></thead>
+            <tbody>
+              {list.map((v) => (
+                <tr key={v.id} style={{ borderBottom: '1px solid var(--border)' }}>
+                  <td style={{ padding: '13px 16px', fontSize: 14.5, fontWeight: 600, color: 'var(--fg)' }}>{v.name || '\u2014'}</td>
+                  <td style={{ padding: '13px 16px', fontSize: 14, color: 'var(--fg-muted)' }}>{v.email}</td>
+                  <td style={{ padding: '13px 16px', fontSize: 13.5, color: 'var(--fg-muted)' }}>{[v.position, v.company].filter(Boolean).join(' · ') || '\u2014'}</td>
+                  <td style={{ padding: '13px 16px', fontSize: 13.5, color: 'var(--fg)' }}>{v.role || '\u2014'}</td>
+                  <td style={{ padding: '13px 16px', fontSize: 13.5, color: 'var(--fg-subtle)' }}>{fmtDate(v.date)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+const EMAIL_TYPE = { announcement: { label: 'Announcement', tone: 'flame', icon: 'megaphone' }, reminder: { label: 'Reminder', tone: 'honey', icon: 'bell' }, blast: { label: 'Blast', tone: 'teal', icon: 'mail' } };
+
+function EmailTab() {
+  const S = window.Store;
+  const [subject, setSubject] = React.useState('');
+  const [body, setBody] = React.useState('');
+  const [audience, setAudience] = React.useState('all');
+  const [sentMsg, setSentMsg] = React.useState('');
+  const emails = S.emails();
+  const counts = { all: S.recipientsAll().length, members: (S.state.members || []).length, list: S.signups().length };
+  const send = (e) => {
+    e.preventDefault();
+    if (!subject.trim() || !body.trim()) return;
+    const em = S.sendBlast({ subject: subject.trim(), body: body.trim(), audience });
+    setSubject(''); setBody('');
+    setSentMsg(`Sent to ${em.count} recipient${em.count !== 1 ? 's' : ''}.`);
+    setTimeout(() => setSentMsg(''), 4000);
+  };
+  const field = { fontFamily: 'var(--font-sans)', fontSize: 15, padding: '12px 14px', borderRadius: 'var(--radius-md)', border: '1.5px solid var(--border-strong)', background: 'var(--surface)', color: 'var(--fg)', width: '100%', boxSizing: 'border-box' };
+
+  return (
+    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 22, alignItems: 'start' }}>
+      <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)', padding: '24px', boxShadow: 'var(--shadow-sm)' }}>
+        <h3 style={{ fontSize: 18, margin: '0 0 4px' }}>Compose an email blast</h3>
+        <p style={{ fontSize: 13.5, color: 'var(--fg-muted)', margin: '0 0 18px' }}>Send an update to the community and mailing list.</p>
+        <form onSubmit={send} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+          <div>
+            <label style={{ display: 'block', fontWeight: 600, fontSize: 13.5, marginBottom: 6 }}>Audience</label>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              {[['all', 'Everyone'], ['members', 'Members'], ['list', 'Mailing list']].map(([k, l]) => {
+                const on = audience === k;
+                return <button type="button" key={k} onClick={() => setAudience(k)} style={{ cursor: 'pointer', fontSize: 13, fontWeight: 600, padding: '8px 13px', borderRadius: 'var(--radius-pill)', border: '1.5px solid ' + (on ? 'var(--primary)' : 'var(--border-strong)'), background: on ? 'var(--primary)' : 'var(--surface)', color: on ? '#fff' : 'var(--fg-muted)' }}>{l} <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, opacity: 0.8 }}>{counts[k]}</span></button>;
+              })}
+            </div>
+          </div>
+          <input style={field} placeholder="Subject" value={subject} onChange={(e) => setSubject(e.target.value)} />
+          <textarea style={{ ...field, resize: 'vertical', minHeight: 130, lineHeight: 1.5 }} placeholder="Write your message…" value={body} onChange={(e) => setBody(e.target.value)} />
+          {sentMsg && <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13.5, color: 'var(--success)', background: 'var(--success-bg)', padding: '10px 13px', borderRadius: 'var(--radius-md)' }}><Icon name="check-circle" size={16} />{sentMsg}</div>}
+          <Btn variant="primary" size="lg" type="submit" icon="send">Send to {counts[audience]} {counts[audience] === 1 ? 'person' : 'people'}</Btn>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: 12, color: 'var(--fg-subtle)' }}><Icon name="info" size={13} /> Delivery is wired to your email provider at deploy.</div>
+        </form>
+      </div>
+
+      <div>
+        <h3 style={{ fontSize: 15, margin: '0 0 14px', fontFamily: 'var(--font-mono)', fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--fg-subtle)' }}>Outbox &amp; log</h3>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          {emails.length === 0 && <p style={{ color: 'var(--fg-muted)', fontSize: 14 }}>No emails sent yet.</p>}
+          {emails.map((em) => {
+            const t = EMAIL_TYPE[em.type] || EMAIL_TYPE.blast;
+            const ev = em.eventId ? S.eventById(em.eventId) : null;
+            return (
+              <div key={em.id} style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius-md)', padding: '16px 18px', boxShadow: 'var(--shadow-sm)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8, flexWrap: 'wrap' }}>
+                  <Tag tone={t.tone} style={{ fontSize: 9.5 }}>{t.label}</Tag>
+                  {em.status === 'scheduled'
+                    ? <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontFamily: 'var(--font-mono)', fontSize: 11, fontWeight: 700, color: 'var(--honey-700)', background: 'var(--honey-100)', padding: '3px 9px', borderRadius: 999 }}><Icon name="clock" size={12} /> Scheduled {em.scheduledFor ? 'for ' + fmtDate(em.scheduledFor) : ''}</span>
+                    : <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontFamily: 'var(--font-mono)', fontSize: 11, fontWeight: 700, color: 'var(--success)', background: 'var(--success-bg)', padding: '3px 9px', borderRadius: 999 }}><Icon name="check" size={12} /> Sent</span>}
+                  <span style={{ marginLeft: 'auto', fontFamily: 'var(--font-mono)', fontSize: 11.5, color: 'var(--fg-subtle)' }}>{em.count} {em.count === 1 ? 'recipient' : 'recipients'} · {fmtDate(em.date)}</span>
+                </div>
+                <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--fg)', marginBottom: 4 }}>{em.subject}</div>
+                <p style={{ fontSize: 13.5, color: 'var(--fg-muted)', lineHeight: 1.5, margin: 0, whiteSpace: 'pre-wrap' }}>{em.body}</p>
+                {ev && <div style={{ marginTop: 12 }}><Btn variant="secondary" size="sm" icon="calendar-plus" onClick={() => window.downloadICS(ev)}>Add to calendar (.ics)</Btn></div>}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function Stars({ n, size = 16 }) {
+  return (
+    <span style={{ display: 'inline-flex', gap: 2 }}>
+      {[1, 2, 3, 4, 5].map((i) => <Icon key={i} name="star" size={size} style={{ color: i <= n ? 'var(--honey-500)' : 'var(--border-strong)', fill: i <= n ? 'var(--honey-500)' : 'transparent' }} />)}
+    </span>
+  );
+}
+
+function FeedbackTab() {
+  const list = window.Store.feedbackList();
+  if (list.length === 0) return <EmptyState icon="message-square" title="No feedback yet" body="Visitor feedback from the site will appear here." />;
+  const rated = list.filter((f) => f.rating > 0);
+  const avg = rated.length ? (rated.reduce((n, f) => n + f.rating, 0) / rated.length) : 0;
+  return (
+    <div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 20, flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)', padding: '14px 20px', boxShadow: 'var(--shadow-sm)' }}>
+          <span style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 30, color: 'var(--fg)' }}>{avg.toFixed(1)}</span>
+          <div><Stars n={Math.round(avg)} /><div style={{ fontSize: 12.5, color: 'var(--fg-subtle)', marginTop: 2 }}>{list.length} responses</div></div>
+        </div>
+      </div>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 16 }}>
+        {list.map((f) => (
+          <div key={f.id} style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)', padding: '20px 22px', boxShadow: 'var(--shadow-sm)', display: 'flex', flexDirection: 'column', gap: 12 }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
+              {f.rating > 0 ? <Stars n={f.rating} /> : <span style={{ fontSize: 12.5, color: 'var(--fg-subtle)' }}>No rating</span>}
+              {f.page && <Tag tone="ink" style={{ fontSize: 9 }}>{f.page}</Tag>}
+            </div>
+            <p style={{ fontSize: 15, color: 'var(--fg)', lineHeight: 1.55, margin: 0 }}>{f.message || <span style={{ color: 'var(--fg-subtle)' }}>(no message)</span>}</p>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, marginTop: 'auto', fontSize: 12.5, color: 'var(--fg-subtle)' }}>
+              {f.email ? <a href={`mailto:${f.email}`} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, color: 'var(--orange-700)', fontWeight: 600 }}><Icon name="mail" size={13} /> Reply</a> : <span>Anonymous</span>}
+              <span style={{ fontFamily: 'var(--font-mono)' }}>{fmtDate(f.date.slice(0, 10))}</span>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+Object.assign(window, { Admin });

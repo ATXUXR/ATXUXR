@@ -1,0 +1,191 @@
+/* global React, Store, useStore, Avatar, Tag, Btn, Icon, Field, Input, Textarea, TagPicker, TAG_SUGGESTIONS, PostCard, fmtDate, toneForTag */
+// ATX UXR — Member profile (detail) + profile setup/edit form.
+
+function ProfileLink({ icon, label, href }) {
+  if (!href) return null;
+  const url = href.startsWith('http') ? href : 'https://' + href;
+  return (
+    <a href={url} target="_blank" rel="noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: 8, fontSize: 14, fontWeight: 600, color: 'var(--fg)',
+      padding: '8px 14px', borderRadius: 'var(--radius-pill)', background: 'var(--surface)', border: '1.5px solid var(--border-strong)' }}>
+      <Icon name={icon} size={16} style={{ color: 'var(--fg-muted)' }} /> {label}
+    </a>
+  );
+}
+
+function Profile({ memberId, setView, openArticle, editProfile }) {
+  useStore();
+  React.useEffect(() => { window.scrollTo({ top: 0 }); }, [memberId]);
+  const member = Store.memberById(memberId);
+  const me = Store.currentUser();
+  if (!member) {
+    return <section style={{ minHeight: '50vh', display: 'grid', placeItems: 'center', color: 'var(--fg-muted)' }}>Member not found.</section>;
+  }
+  const isMe = me && me.id === member.id;
+  const posts = Store.publishedPosts().filter((p) => p.authorId === member.id);
+
+  return (
+    <React.Fragment>
+      {/* BANNER */}
+      <section style={{ position: 'relative', background: 'var(--neutral-950)', overflow: 'hidden' }}>
+        <div style={{ position: 'absolute', inset: 0, opacity: 0.5, background: 'radial-gradient(900px 380px at 30% -20%, rgba(238,74,28,0.4), transparent 60%), radial-gradient(700px 320px at 90% 0%, rgba(15,126,108,0.3), transparent 60%)' }} />
+        <div style={{ maxWidth: 1140, margin: '0 auto', padding: '30px 28px 0', position: 'relative' }}>
+          <button type="button" onClick={() => setView('community')} style={{ display: 'inline-flex', alignItems: 'center', gap: 7, cursor: 'pointer', background: 'none', border: 'none', fontWeight: 600, fontSize: 14, color: 'rgba(247,242,236,0.75)', padding: 0 }}>
+            <Icon name="arrow-left" size={16} /> Community
+          </button>
+        </div>
+        <div style={{ height: 60 }} />
+      </section>
+
+      <section style={{ background: 'var(--bg)' }}>
+        <div style={{ maxWidth: 1140, margin: '0 auto', padding: '0 28px 70px' }}>
+          {/* HEADER CARD */}
+          <div style={{ marginTop: -56, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius-xl)', boxShadow: 'var(--shadow-md)', padding: '0 32px 30px' }}>
+            <div style={{ marginTop: -44 }}>
+              <Avatar member={member} size={112} ring style={{ boxShadow: '0 0 0 5px var(--surface)' }} />
+            </div>
+            <div style={{ marginTop: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 18, flexWrap: 'wrap' }}>
+              <div style={{ flex: '1 1 340px', minWidth: 240 }}>
+              <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap', width: '100%' }}>
+                <h1 style={{ fontSize: 'clamp(1.9rem, 1.5rem + 1.2vw, 2.5rem)', margin: 0, lineHeight: 1.08 }}>{member.name}</h1>
+                {member.admin && <Tag tone="ink">Organizer</Tag>}
+                {isMe && <Tag tone="flame">You</Tag>}
+              </div>
+              <div style={{ fontSize: 17, color: 'var(--fg-muted)', marginTop: 8 }}>
+                {member.role}{member.company ? <span> at <strong style={{ color: 'var(--fg)', fontWeight: 600 }}>{member.company}</strong></span> : ''}
+              </div>
+              <div style={{ display: 'flex', gap: '6px 18px', flexWrap: 'wrap', marginTop: 12, fontSize: 14, color: 'var(--fg-muted)' }}>
+                {member.location && <span style={{ display: 'inline-flex', alignItems: 'center', gap: 7 }}><Icon name="map-pin" size={15} />{member.location}</span>}
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 7 }}><Icon name="mail" size={15} />{member.email}</span>
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 7 }}><Icon name="calendar" size={15} />Joined {fmtDate(member.joined)}</span>
+              </div>
+              </div>
+              <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', flex: 'none' }}>
+                {isMe && <Btn variant="secondary" icon="settings" onClick={() => editProfile()}>Edit profile</Btn>}
+              </div>
+            </div>
+          </div>
+
+          {/* BODY */}
+          <div className="profile-body" style={{ display: 'grid', gridTemplateColumns: '1.6fr 1fr', gap: 36, marginTop: 36, alignItems: 'start' }}>
+            <div>
+              {member.bio && (
+                <div style={{ marginBottom: 34 }}>
+                  <h2 style={{ fontSize: 'var(--text-2xl)', margin: '0 0 12px' }}>About</h2>
+                  <p style={{ fontSize: 16.5, color: 'var(--fg-muted)', lineHeight: 1.65, margin: 0 }}>{member.bio}</p>
+                </div>
+              )}
+              <div>
+                <h2 style={{ fontSize: 'var(--text-2xl)', margin: '0 0 16px' }}>{isMe ? 'Your posts' : `Posts by ${member.name.split(' ')[0]}`} {posts.length > 0 && <span style={{ color: 'var(--fg-subtle)', fontWeight: 400 }}>({posts.length})</span>}</h2>
+                {posts.length === 0 ? (
+                  <div style={{ padding: '34px 28px', textAlign: 'center', background: 'var(--surface)', border: '1px dashed var(--border-strong)', borderRadius: 'var(--radius-lg)', color: 'var(--fg-muted)' }}>
+                    <Icon name="pen-line" size={26} style={{ color: 'var(--fg-subtle)' }} />
+                    <p style={{ margin: '10px 0 0', fontSize: 14.5 }}>{isMe ? 'You haven’t published a post yet.' : 'No posts published yet.'}</p>
+                  </div>
+                ) : (
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 20 }} className="profile-posts">
+                    {posts.map((p) => <PostCard key={p.id} post={p} onOpen={openArticle} />)}
+                  </div>
+                )}
+              </div>
+            </div>
+            <aside style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+              {member.expertise && member.expertise.length > 0 && (
+                <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)', padding: '22px 24px' }}>
+                  <h3 style={{ fontSize: 15, margin: '0 0 14px', fontFamily: 'var(--font-mono)', fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--fg-subtle)' }}>Research interests</h3>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                    {member.expertise.map((t) => <Tag key={t} tone={toneForTag(t)}>{t}</Tag>)}
+                  </div>
+                </div>
+              )}
+              {(member.linkedin || member.website || member.email) && (
+                <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)', padding: '22px 24px' }}>
+                  <h3 style={{ fontSize: 15, margin: '0 0 14px', fontFamily: 'var(--font-mono)', fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--fg-subtle)' }}>Find me online</h3>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 9 }}>
+                    <ProfileLink icon="linkedin" label="LinkedIn" href={member.linkedin} />
+                    <ProfileLink icon="globe" label="Website" href={member.website} />
+                    <a href={`mailto:${member.email}`} style={{ display: 'inline-flex', alignItems: 'center', gap: 8, fontSize: 14, fontWeight: 600, color: 'var(--fg)', padding: '8px 14px', borderRadius: 'var(--radius-pill)', background: 'var(--surface)', border: '1.5px solid var(--border-strong)' }}><Icon name="mail" size={16} style={{ color: 'var(--fg-muted)' }} /> Email</a>
+                  </div>
+                </div>
+              )}
+            </aside>
+          </div>
+        </div>
+      </section>
+    </React.Fragment>
+  );
+}
+
+// ---------- Profile setup / edit form ----------
+function ProfileSetup({ setView, isSetup, afterSave }) {
+  useStore();
+  const me = Store.currentUser();
+  const [form, setForm] = React.useState(() => ({
+    name: me ? me.name : '', photo: me ? me.photo : null, role: me ? me.role : '', company: me ? me.company : '',
+    linkedin: me ? me.linkedin : '', website: me ? me.website : '', location: me ? me.location : '',
+    bio: me ? me.bio : '', expertise: me ? [...(me.expertise || [])] : [],
+  }));
+  React.useEffect(() => { window.scrollTo({ top: 0 }); }, []);
+  if (!me) { return <section style={{ minHeight: '50vh', display: 'grid', placeItems: 'center', color: 'var(--fg-muted)' }}>Sign in to edit your profile.</section>; }
+  const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
+  const onPhoto = (e) => {
+    const file = e.target.files && e.target.files[0]; if (!file) return;
+    const r = new FileReader(); r.onload = () => set('photo', r.result); r.readAsDataURL(file);
+  };
+  const save = () => { Store.updateMember(me.id, form); if (afterSave) afterSave(); };
+
+  const preview = { ...me, ...form };
+  return (
+    <section style={{ background: 'var(--bg)' }}>
+      <div style={{ maxWidth: 680, margin: '0 auto', padding: '48px 28px 80px' }}>
+        {isSetup ? (
+          <div style={{ textAlign: 'center', marginBottom: 34 }}>
+            <span style={{ display: 'inline-grid', placeItems: 'center', width: 64, height: 64, borderRadius: '999px 999px 16px 16px', background: 'var(--orange-50)', color: 'var(--primary)', marginBottom: 16 }}><Icon name="sparkles" size={30} /></span>
+            <h1 style={{ fontSize: 'clamp(2rem, 1.5rem + 1.6vw, 2.6rem)', margin: '0 0 10px' }}>Welcome! Set up your profile</h1>
+            <p style={{ fontSize: 16.5, color: 'var(--fg-muted)', margin: 0 }}>Tell the community who you are. You can always change this later.</p>
+          </div>
+        ) : (
+          <div style={{ marginBottom: 30 }}>
+            <button type="button" onClick={() => setView('profile')} style={{ display: 'inline-flex', alignItems: 'center', gap: 7, cursor: 'pointer', background: 'none', border: 'none', fontWeight: 600, fontSize: 14, color: 'var(--fg-muted)', padding: 0, marginBottom: 18 }}><Icon name="arrow-left" size={16} /> Back to profile</button>
+            <h1 style={{ fontSize: 'clamp(2rem, 1.5rem + 1.6vw, 2.6rem)', margin: 0 }}>Edit your profile</h1>
+          </div>
+        )}
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 22, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius-xl)', padding: '30px 30px 34px', boxShadow: 'var(--shadow-sm)' }}>
+          {/* PHOTO */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 18 }}>
+            <Avatar member={preview} size={84} />
+            <div>
+              <label style={{ display: 'inline-flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontFamily: 'var(--font-sans)', fontWeight: 600, fontSize: 14, padding: '10px 16px', borderRadius: 'var(--radius-md)', background: 'var(--surface)', border: '1.5px solid var(--border-strong)', color: 'var(--fg)' }}>
+                <Icon name="upload" size={16} /> {form.photo ? 'Change photo' : 'Upload photo'}
+                <input type="file" accept="image/*" onChange={onPhoto} style={{ display: 'none' }} />
+              </label>
+              {form.photo && <button type="button" onClick={() => set('photo', null)} style={{ marginLeft: 10, background: 'none', border: 'none', cursor: 'pointer', fontSize: 13.5, fontWeight: 600, color: 'var(--fg-muted)' }}>Remove</button>}
+              <div style={{ fontSize: 12.5, color: 'var(--fg-subtle)', marginTop: 7 }}>No photo? We’ll use your initials.</div>
+            </div>
+          </div>
+
+          <Field label="Full name"><Input value={form.name} onChange={(v) => set('name', v)} placeholder="Your name" icon="user" /></Field>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }} className="setup-row">
+            <Field label="Role / title"><Input value={form.role} onChange={(v) => set('role', v)} placeholder="Senior UX Researcher" /></Field>
+            <Field label="Company"><Input value={form.company} onChange={(v) => set('company', v)} placeholder="Where you work" /></Field>
+          </div>
+          <Field label="Location" optional><Input value={form.location} onChange={(v) => set('location', v)} placeholder="Austin, TX" icon="map-pin" /></Field>
+          <Field label="About" optional hint="A sentence or two about your work and what you care about."><Textarea value={form.bio} onChange={(v) => set('bio', v)} rows={3} placeholder="Mixed-methods researcher focused on…" /></Field>
+          <Field label="Research interests" optional hint="Add the topics you focus on — these power the directory filters."><TagPicker value={form.expertise} onChange={(v) => set('expertise', v)} suggestions={TAG_SUGGESTIONS} /></Field>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }} className="setup-row">
+            <Field label="LinkedIn" optional><Input value={form.linkedin} onChange={(v) => set('linkedin', v)} placeholder="linkedin.com/in/you" icon="linkedin" /></Field>
+            <Field label="Personal website" optional><Input value={form.website} onChange={(v) => set('website', v)} placeholder="yoursite.com" icon="globe" /></Field>
+          </div>
+
+          <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end', flexWrap: 'wrap', paddingTop: 8, borderTop: '1px solid var(--border)' }}>
+            {!isSetup && <Btn variant="secondary" onClick={() => setView('profile')}>Cancel</Btn>}
+            {isSetup && <Btn variant="ghost" onClick={save}>Skip for now</Btn>}
+            <Btn variant="primary" size="lg" icon="check" onClick={save}>{isSetup ? 'Finish setup' : 'Save changes'}</Btn>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+Object.assign(window, { Profile, ProfileSetup });

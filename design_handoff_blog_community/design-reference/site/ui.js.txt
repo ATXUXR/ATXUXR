@@ -1,0 +1,174 @@
+/* global React, Icon, Tag, toneForName, initials, toneForTag */
+// ATX UXR — shared primitives for the blog + community features.
+
+// ---------- Avatar (photo or deterministic initials) ----------
+function Avatar({ member, size = 44, style, ring = false }) {
+  const tone = toneForName(member ? member.name : '?');
+  const common = { width: size, height: size, borderRadius: '50%', flex: 'none', display: 'block',
+    boxShadow: ring ? '0 0 0 2px var(--surface), 0 0 0 3.5px var(--border-strong)' : 'none', ...style };
+  if (member && member.photo) {
+    return <img src={member.photo} alt={member.name} style={{ ...common, objectFit: 'cover' }} />;
+  }
+  return (
+    <span style={{ ...common, background: tone.bg, color: tone.fg, display: 'grid', placeItems: 'center',
+      fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: size * 0.4, letterSpacing: '-0.01em' }}>
+      {initials(member ? member.name : '?')}
+    </span>
+  );
+}
+
+// ---------- Form field ----------
+const fieldBox = { fontFamily: 'var(--font-sans)', fontSize: 15, padding: '12px 14px', borderRadius: 'var(--radius-md)',
+  border: '1.5px solid var(--border-strong)', background: 'var(--surface)', color: 'var(--fg)', width: '100%', boxSizing: 'border-box',
+  transition: 'var(--transition)' };
+const fieldLabel = { display: 'block', fontFamily: 'var(--font-sans)', fontWeight: 600, fontSize: 13.5, marginBottom: 6, color: 'var(--fg)' };
+
+function Field({ label, hint, optional, children }) {
+  return (
+    <div>
+      {label && (
+        <label style={fieldLabel}>{label}{optional && <span style={{ color: 'var(--fg-subtle)', fontWeight: 400 }}> (optional)</span>}</label>
+      )}
+      {children}
+      {hint && <div style={{ fontSize: 12.5, color: 'var(--fg-subtle)', marginTop: 5 }}>{hint}</div>}
+    </div>
+  );
+}
+
+function Input({ value, onChange, type = 'text', placeholder, icon, ...rest }) {
+  const [foc, setFoc] = React.useState(false);
+  const el = (
+    <input type={type} value={value} placeholder={placeholder}
+      onChange={(e) => onChange && onChange(e.target.value)}
+      onFocus={() => setFoc(true)} onBlur={() => setFoc(false)}
+      style={{ ...fieldBox, paddingLeft: icon ? 42 : 14, borderColor: foc ? 'var(--primary)' : 'var(--border-strong)', boxShadow: foc ? '0 0 0 3px var(--ring)' : 'none' }}
+      {...rest} />
+  );
+  if (!icon) return el;
+  return (
+    <div style={{ position: 'relative' }}>
+      <span style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: 'var(--fg-subtle)', display: 'inline-flex' }}><Icon name={icon} size={18} /></span>
+      {el}
+    </div>
+  );
+}
+
+function Textarea({ value, onChange, placeholder, rows = 4, ...rest }) {
+  const [foc, setFoc] = React.useState(false);
+  return (
+    <textarea value={value} placeholder={placeholder} rows={rows}
+      onChange={(e) => onChange && onChange(e.target.value)}
+      onFocus={() => setFoc(true)} onBlur={() => setFoc(false)}
+      style={{ ...fieldBox, resize: 'vertical', lineHeight: 1.5, borderColor: foc ? 'var(--primary)' : 'var(--border-strong)', boxShadow: foc ? '0 0 0 3px var(--ring)' : 'none' }}
+      {...rest} />
+  );
+}
+
+// ---------- Tag picker (suggestions + free-form) ----------
+function TagPicker({ value = [], onChange, suggestions = [] }) {
+  const [draft, setDraft] = React.useState('');
+  const add = (t) => {
+    const tag = t.trim();
+    if (!tag || value.some((v) => v.toLowerCase() === tag.toLowerCase())) return;
+    onChange([...value, tag]); setDraft('');
+  };
+  const remove = (t) => onChange(value.filter((v) => v !== t));
+  const open = suggestions.filter((s) => !value.some((v) => v.toLowerCase() === s.toLowerCase()))
+    .filter((s) => !draft || s.toLowerCase().includes(draft.toLowerCase())).slice(0, 8);
+  return (
+    <div>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center', ...fieldBox, padding: '10px 12px', minHeight: 46 }}>
+        {value.map((t) => (
+          <span key={t} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontFamily: 'var(--font-mono)', fontWeight: 700, fontSize: 11,
+            letterSpacing: '0.06em', textTransform: 'uppercase', padding: '5px 6px 5px 10px', borderRadius: 'var(--radius-pill)', background: 'var(--orange-50)', color: 'var(--orange-700)' }}>
+            {t}
+            <button type="button" onClick={() => remove(t)} aria-label={`Remove ${t}`}
+              style={{ display: 'inline-grid', placeItems: 'center', width: 16, height: 16, borderRadius: '50%', border: 'none', cursor: 'pointer', background: 'var(--orange-200)', color: 'var(--orange-800)' }}><Icon name="x" size={11} /></button>
+          </span>
+        ))}
+        <input value={draft} onChange={(e) => setDraft(e.target.value)}
+          onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); add(draft); } else if (e.key === 'Backspace' && !draft && value.length) { remove(value[value.length - 1]); } }}
+          placeholder={value.length ? 'Add another…' : 'Pick from suggestions or type your own…'}
+          style={{ flex: '1 1 120px', minWidth: 120, border: 'none', outline: 'none', background: 'transparent', fontFamily: 'var(--font-sans)', fontSize: 14, color: 'var(--fg)' }} />
+      </div>
+      {open.length > 0 && (
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7, marginTop: 10 }}>
+          {open.map((s) => (
+            <button type="button" key={s} onClick={() => add(s)}
+              style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, fontSize: 11, letterSpacing: '0.06em', textTransform: 'uppercase', cursor: 'pointer',
+                padding: '5px 11px', borderRadius: 'var(--radius-pill)', background: 'var(--surface)', color: 'var(--fg-muted)', border: '1.5px dashed var(--border-strong)' }}>
+              + {s}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ---------- Modal shell ----------
+function Modal({ open, onClose, children, width = 480 }) {
+  React.useEffect(() => {
+    if (!open) return undefined;
+    const onKey = (e) => { if (e.key === 'Escape') onClose(); };
+    document.addEventListener('keydown', onKey);
+    const prev = document.body.style.overflow; document.body.style.overflow = 'hidden';
+    return () => { document.removeEventListener('keydown', onKey); document.body.style.overflow = prev; };
+  }, [open, onClose]);
+  if (!open) return null;
+  return (
+    <div onClick={onClose} style={{ position: 'fixed', inset: 0, zIndex: 200, background: 'rgba(33,30,34,0.5)', backdropFilter: 'blur(4px)',
+      display: 'grid', placeItems: 'center', padding: 20, overflowY: 'auto' }}>
+      <div onClick={(e) => e.stopPropagation()} style={{ background: 'var(--surface)', borderRadius: 'var(--radius-xl)', boxShadow: 'var(--shadow-xl)',
+        width: '100%', maxWidth: width, position: 'relative', margin: 'auto' }}>
+        <button onClick={onClose} aria-label="Close" style={{ position: 'absolute', top: 16, right: 16, zIndex: 2, display: 'grid', placeItems: 'center', width: 36, height: 36,
+          borderRadius: '50%', border: 'none', cursor: 'pointer', background: 'var(--surface-sunk)', color: 'var(--fg-muted)' }}><Icon name="x" size={18} /></button>
+        {children}
+      </div>
+    </div>
+  );
+}
+
+// ---------- Post cover (brand-tinted placeholder, no fake photography) ----------
+const COVER_TONES = {
+  flame: { a: '#FF9C72', b: '#EE4A1C', ink: '#5A1A06' },
+  teal: { a: '#5FB7A6', b: '#0F7E6C', ink: '#07372F' },
+  honey: { a: '#F2C879', b: '#E7A33C', ink: '#5A3A06' },
+  ink: { a: '#534C51', b: '#211E22', ink: '#F7F2EC' },
+};
+function PostCover({ post, height = 200, radius = 'var(--radius-lg) var(--radius-lg) 0 0', flat = false }) {
+  if (post && post.cover) {
+    return <div style={{ height, borderRadius: radius, backgroundImage: `url(${post.cover})`, backgroundSize: 'cover', backgroundPosition: 'center' }} />;
+  }
+  const tag = (post && post.tags && post.tags[0]) || 'flame';
+  const tone = COVER_TONES[toneForTag(tag)] || COVER_TONES.flame;
+  const onDark = toneForTag(tag) === 'ink';
+  return (
+    <div style={{ height, borderRadius: radius, position: 'relative', overflow: 'hidden',
+      background: `linear-gradient(135deg, ${tone.a}, ${tone.b})` }}>
+      <div style={{ position: 'absolute', inset: 0, opacity: 0.16,
+        backgroundImage: 'repeating-linear-gradient(135deg, rgba(255,255,255,0.6) 0 2px, transparent 2px 13px)' }} />
+      <div style={{ position: 'absolute', right: -30, bottom: -46, width: 200, height: 200, borderRadius: '999px 999px 0 0',
+        border: `2px solid ${onDark ? 'rgba(247,242,236,0.3)' : 'rgba(255,255,255,0.45)'}`, opacity: 0.7 }} />
+      <div style={{ position: 'absolute', left: flat ? 24 : 22, bottom: flat ? 22 : 18, fontFamily: 'var(--font-mono)', fontWeight: 700, fontSize: 12,
+        letterSpacing: '0.16em', textTransform: 'uppercase', color: onDark ? '#F7F2EC' : 'rgba(255,255,255,0.92)' }}>{tag}</div>
+    </div>
+  );
+}
+
+// ---------- Article-body styles (shared by editor preview + reading view) ----------
+const PROSE_CSS = `
+.atx-prose { font-family: var(--font-sans); font-size: 18px; line-height: 1.72; color: var(--neutral-800); }
+.atx-prose > *:first-child { margin-top: 0; }
+.atx-prose p { margin: 0 0 1.15em; max-width: none; }
+.atx-prose h2 { font-family: var(--font-display); font-size: 28px; font-weight: 700; letter-spacing: -0.02em; color: var(--fg); margin: 1.7em 0 0.5em; line-height: 1.15; }
+.atx-prose h3 { font-family: var(--font-display); font-size: 22px; font-weight: 700; color: var(--fg); margin: 1.5em 0 0.4em; }
+.atx-prose ul, .atx-prose ol { margin: 0 0 1.2em; padding-left: 1.4em; }
+.atx-prose li { margin: 0.35em 0; }
+.atx-prose blockquote { margin: 1.5em 0; padding: 4px 0 4px 22px; border-left: 3px solid var(--primary); font-family: var(--font-display); font-size: 22px; font-weight: 500; line-height: 1.35; color: var(--fg); letter-spacing: -0.01em; }
+.atx-prose a { color: var(--link); text-decoration: underline; text-decoration-color: var(--orange-200); text-underline-offset: 3px; }
+.atx-prose strong { font-weight: 700; color: var(--fg); }
+.atx-prose em { font-style: italic; }
+`;
+
+Object.assign(window, { Avatar, Field, Input, Textarea, TagPicker, Modal, PostCover, fieldBox, fieldLabel, PROSE_CSS });

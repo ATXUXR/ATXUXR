@@ -1,12 +1,6 @@
 # Build settings for Netlify.
-# This is a zero-build static site — Netlify just serves the folder as-is.
+# The Netlify Next.js runtime is auto-detected from package.json; no extra
+# plugin or redirect config is required for a standard App Router build.
 [build]
-  publish = "."
-  command = ""
-
-# SPA-style fallback: the site swaps views in-page, but these are real
-# top-level routes if you later split them into pages. Safe to keep.
-[[redirects]]
-  from = "/*"
-  to = "/index.html"
-  status = 200
+  command = "npm run build"
+  publish = ".next"
