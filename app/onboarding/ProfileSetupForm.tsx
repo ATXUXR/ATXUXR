@@ -6,6 +6,7 @@ import { Btn } from "@/components/ui/Button";
 import { Icon } from "@/components/ui/Icon";
 import { Tag } from "@/components/ui/Tag";
 import { initials, toneForName } from "@/lib/utils";
+import { createClient } from "@/lib/supabase/client";
 
 export interface ProfileSeed {
   name: string;
@@ -142,13 +143,50 @@ export function ProfileSetupForm({ seed, isSetup }: Props) {
       form.expertise.filter((x) => x !== t),
     );
 
+  const [error, setError] = useState<string | null>(null);
+
   const save = async () => {
     setSaving(true);
+    setError(null);
     try {
-      // Stub: writes the profile to a real route once Supabase is wired.
-      console.log("profile save (stub)", form);
+      const supabase = createClient();
+      const {
+        data: { user },
+        error: userError,
+      } = await supabase.auth.getUser();
+      if (userError || !user) {
+        setError("You need to be signed in to save your profile.");
+        return;
+      }
+
+      // Upsert the members row (RLS lets a user write only their own).
+      const { error: upsertError } = await supabase.from("members").upsert(
+        {
+          id: user.id,
+          email: user.email ?? "",
+          name: form.name,
+          role: form.role,
+          company: form.company,
+          location: form.location,
+          bio: form.bio,
+          linkedin: form.linkedin,
+          website: form.website,
+          expertise: form.expertise,
+          photo: form.photo,
+          fresh: false,
+        },
+        { onConflict: "id" },
+      );
+
+      if (upsertError) {
+        setError(upsertError.message);
+        return;
+      }
+
       router.push("/profile");
       router.refresh();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Something went wrong");
     } finally {
       setSaving(false);
     }
@@ -416,6 +454,20 @@ export function ProfileSetupForm({ seed, isSetup }: Props) {
             </div>
           </div>
 
+          {error && (
+            <div
+              style={{
+                padding: "12px 14px",
+                borderRadius: "var(--radius-md)",
+                background: "var(--danger-bg)",
+                color: "var(--danger)",
+                fontSize: 14,
+              }}
+              role="alert"
+            >
+              {error}
+            </div>
+          )}
           <div
             style={{
               display: "flex",
