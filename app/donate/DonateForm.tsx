@@ -1,32 +1,19 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
-import Link from "next/link";
+import { useEffect, useRef, useState } from "react";
 import { Btn } from "@/components/ui/Button";
 import { Icon } from "@/components/ui/Icon";
 
-const PRESETS = [10, 25, 50, 100] as const;
+const ZELLE_EMAIL = "atxuxr@gmail.com";
+const VENMO_URL = "https://www.venmo.com/u/MaralElliott";
+const PAYPAL_BUTTON_ID = "3U7W7MHJFCSF4";
 
-const fieldStyle: React.CSSProperties = {
-  fontFamily: "var(--font-sans)",
-  fontSize: 15,
-  padding: "12px 14px",
-  borderRadius: "var(--radius-md)",
-  border: "1.5px solid var(--border-strong)",
-  background: "var(--surface)",
-  color: "var(--fg)",
-  width: "100%",
-  boxSizing: "border-box",
-};
-
-const labelStyle: React.CSSProperties = {
-  display: "block",
-  fontFamily: "var(--font-sans)",
-  fontWeight: 600,
-  fontSize: 13.5,
-  marginBottom: 6,
-  color: "var(--fg)",
-};
+// Minimal type for the PayPal Hosted Buttons SDK we render.
+interface PayPalHostedButtons {
+  HostedButtons: (opts: { hostedButtonId: string }) => {
+    render: (selector: string) => void;
+  };
+}
 
 function Card({ children }: { children: React.ReactNode }) {
   return (
@@ -46,200 +33,202 @@ function Card({ children }: { children: React.ReactNode }) {
   );
 }
 
-export function DonateForm() {
-  const [amount, setAmount] = useState<number>(25);
-  const [custom, setCustom] = useState("");
-  const [done, setDone] = useState(false);
+function Divider({ label }: { label: string }) {
+  return (
+    <div
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: 14,
+        margin: "22px 0",
+      }}
+    >
+      <span style={{ flex: 1, height: 1, background: "var(--border)" }} />
+      <span
+        style={{
+          fontFamily: "var(--font-mono)",
+          fontSize: 11,
+          letterSpacing: "0.12em",
+          color: "var(--fg-subtle)",
+        }}
+      >
+        {label}
+      </span>
+      <span style={{ flex: 1, height: 1, background: "var(--border)" }} />
+    </div>
+  );
+}
 
-  const value = custom || amount;
+function PayPalButton() {
+  const ref = useRef<HTMLDivElement>(null);
+  const rendered = useRef(false);
 
-  const submit = (e: FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    // Stub. Real money flow goes through Venmo for now.
-    console.log("donate (stub)", { amount: value });
-    setDone(true);
-    window.scrollTo({ top: 0, behavior: "smooth" });
+  useEffect(() => {
+    if (rendered.current) return;
+    const tryRender = () => {
+      const pp = (window as unknown as { paypal?: PayPalHostedButtons }).paypal;
+      if (pp?.HostedButtons && ref.current) {
+        pp.HostedButtons({ hostedButtonId: PAYPAL_BUTTON_ID }).render(
+          `#paypal-container-${PAYPAL_BUTTON_ID}`,
+        );
+        rendered.current = true;
+        return true;
+      }
+      return false;
+    };
+    if (tryRender()) return;
+    const interval = window.setInterval(() => {
+      if (tryRender()) window.clearInterval(interval);
+    }, 200);
+    // Stop polling after ~10s in case SDK fails to load.
+    const timeout = window.setTimeout(() => window.clearInterval(interval), 10_000);
+    return () => {
+      window.clearInterval(interval);
+      window.clearTimeout(timeout);
+    };
+  }, []);
+
+  return <div id={`paypal-container-${PAYPAL_BUTTON_ID}`} ref={ref} />;
+}
+
+function CopyEmail() {
+  const [copied, setCopied] = useState(false);
+  const onCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(ZELLE_EMAIL);
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 1800);
+    } catch {
+      // ignore — user can still select + copy manually
+    }
   };
+  return (
+    <div
+      style={{
+        display: "flex",
+        alignItems: "stretch",
+        border: "1.5px solid var(--border-strong)",
+        borderRadius: "var(--radius-md)",
+        overflow: "hidden",
+      }}
+    >
+      <div
+        style={{
+          flex: 1,
+          padding: "12px 14px",
+          fontFamily: "var(--font-mono)",
+          fontSize: 14,
+          color: "var(--fg)",
+          background: "var(--surface-sunk)",
+          alignSelf: "center",
+        }}
+      >
+        {ZELLE_EMAIL}
+      </div>
+      <button
+        type="button"
+        onClick={onCopy}
+        aria-label="Copy Zelle email"
+        style={{
+          padding: "0 18px",
+          background: "var(--surface)",
+          border: "none",
+          borderLeft: "1.5px solid var(--border-strong)",
+          fontFamily: "var(--font-sans)",
+          fontWeight: 600,
+          fontSize: 14,
+          color: "var(--fg)",
+          cursor: "pointer",
+        }}
+      >
+        {copied ? "Copied!" : "Copy"}
+      </button>
+    </div>
+  );
+}
 
+export function DonateForm() {
   return (
     <Card>
-      {done ? (
-        <div style={{ textAlign: "center", padding: "12px 4px" }}>
-          <span
-            style={{
-              display: "inline-grid",
-              placeItems: "center",
-              width: 60,
-              height: 60,
-              borderRadius: "50%",
-              background: "var(--success-bg)",
-              color: "var(--success)",
-              marginBottom: 16,
-            }}
-          >
-            <Icon name="heart" size={30} />
-          </span>
-          <h3 style={{ fontSize: 22, margin: "0 0 8px" }}>
-            Thank you for helping us make a difference!
-          </h3>
-          <p style={{ fontSize: 15, color: "var(--fg-muted)", margin: "0 0 20px" }}>
-            Your ${value} donation keeps ATX UXR free and open for everyone.
-          </p>
-          <Link href="/events" style={{ textDecoration: "none" }}>
-            <Btn variant="secondary">Browse events</Btn>
-          </Link>
+      <h3
+        style={{
+          fontFamily: "var(--font-display)",
+          fontSize: 22,
+          margin: "0 0 6px",
+        }}
+      >
+        Choose a way to give
+      </h3>
+      <p
+        style={{
+          margin: "0 0 22px",
+          color: "var(--fg-muted)",
+          fontSize: 14.5,
+        }}
+      >
+        Donations go to <strong style={{ color: "var(--fg)" }}>ATX UXR</strong>.
+        Pick whichever payment method you prefer.
+      </p>
+
+      {/* Primary: PayPal hosted button. Renders into a real PayPal button —
+          includes PayPal balance, debit/credit card, and Venmo (via PayPal
+          Checkout) as funding options. */}
+      <PayPalButton />
+
+      <Divider label="OR" />
+
+      {/* Standalone Venmo for people who'd rather pay in the Venmo app
+          directly. Note this goes to the personal Venmo handle, not the
+          ATX UXR business account. */}
+      <a
+        href={VENMO_URL}
+        target="_blank"
+        rel="noreferrer"
+        style={{ textDecoration: "none", display: "block" }}
+      >
+        <Btn
+          variant="ink"
+          size="lg"
+          icon="external-link"
+          style={{ width: "100%", justifyContent: "center" }}
+        >
+          Pay on Venmo
+        </Btn>
+      </a>
+
+      <Divider label="OR" />
+
+      {/* Zelle — no clickable link. Donor opens their own bank's Zelle
+          interface and sends to this email. */}
+      <div>
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
+            marginBottom: 8,
+            fontFamily: "var(--font-mono)",
+            fontSize: 11,
+            letterSpacing: "0.12em",
+            color: "var(--fg-muted)",
+            textTransform: "uppercase",
+          }}
+        >
+          <Icon name="banknote" size={14} />
+          Send via Zelle from your bank app
         </div>
-      ) : (
-        <>
-          <form
-            onSubmit={submit}
-            style={{ display: "flex", flexDirection: "column", gap: 16 }}
-          >
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "1fr 1fr",
-                gap: 14,
-              }}
-            >
-              <div>
-                <label style={labelStyle}>First name</label>
-                <input style={fieldStyle} name="firstName" />
-              </div>
-              <div>
-                <label style={labelStyle}>Last name</label>
-                <input style={fieldStyle} name="lastName" />
-              </div>
-            </div>
-            <div>
-              <label style={labelStyle}>Email</label>
-              <input
-                style={fieldStyle}
-                type="email"
-                name="email"
-                placeholder="you@example.com"
-              />
-            </div>
-            <div>
-              <label style={labelStyle}>Amount</label>
-              <div
-                style={{
-                  display: "flex",
-                  gap: 8,
-                  marginBottom: 10,
-                  flexWrap: "wrap",
-                }}
-              >
-                {PRESETS.map((p) => {
-                  const on = !custom && amount === p;
-                  return (
-                    <button
-                      type="button"
-                      key={p}
-                      onClick={() => {
-                        setAmount(p);
-                        setCustom("");
-                      }}
-                      style={{
-                        cursor: "pointer",
-                        flex: "1 1 0",
-                        minWidth: 64,
-                        padding: "11px 0",
-                        borderRadius: "var(--radius-md)",
-                        fontFamily: "var(--font-display)",
-                        fontWeight: 700,
-                        fontSize: 17,
-                        border:
-                          "1.5px solid " +
-                          (on ? "var(--primary)" : "var(--border-strong)"),
-                        background: on ? "var(--primary)" : "var(--surface)",
-                        color: on ? "#fff" : "var(--fg)",
-                        transition: "var(--transition)",
-                      }}
-                    >
-                      ${p}
-                    </button>
-                  );
-                })}
-              </div>
-              <div
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 0,
-                  border: "1.5px solid var(--border-strong)",
-                  borderRadius: "var(--radius-md)",
-                  overflow: "hidden",
-                }}
-              >
-                <span
-                  style={{
-                    padding: "12px 16px",
-                    background: "var(--surface-sunk)",
-                    fontFamily: "var(--font-display)",
-                    fontWeight: 700,
-                    color: "var(--fg-muted)",
-                  }}
-                >
-                  $
-                </span>
-                <input
-                  value={custom}
-                  onChange={(e) => setCustom(e.target.value.replace(/[^0-9]/g, ""))}
-                  placeholder="Other amount"
-                  style={{ ...fieldStyle, border: "none", borderRadius: 0 }}
-                  inputMode="numeric"
-                />
-              </div>
-            </div>
-            <Btn
-              variant="primary"
-              size="lg"
-              type="submit"
-              icon="heart"
-              style={{ width: "100%", justifyContent: "center", marginTop: 4 }}
-            >
-              {`Donate $${value}`}
-            </Btn>
-          </form>
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 14,
-              margin: "22px 0",
-            }}
-          >
-            <span style={{ flex: 1, height: 1, background: "var(--border)" }} />
-            <span
-              style={{
-                fontFamily: "var(--font-mono)",
-                fontSize: 11,
-                letterSpacing: "0.12em",
-                color: "var(--fg-subtle)",
-              }}
-            >
-              OR
-            </span>
-            <span style={{ flex: 1, height: 1, background: "var(--border)" }} />
-          </div>
-          <a
-            href="https://www.venmo.com/u/MaralElliott"
-            target="_blank"
-            rel="noreferrer"
-            style={{ textDecoration: "none" }}
-          >
-            <Btn
-              variant="ink"
-              size="lg"
-              icon="external-link"
-              style={{ width: "100%", justifyContent: "center" }}
-            >
-              Donate on Venmo
-            </Btn>
-          </a>
-        </>
-      )}
+        <CopyEmail />
+        <p
+          style={{
+            margin: "10px 0 0",
+            fontSize: 13,
+            color: "var(--fg-subtle)",
+          }}
+        >
+          Most major banks support Zelle in their mobile app. Send to the email
+          above — no fees, arrives in minutes.
+        </p>
+      </div>
     </Card>
   );
 }
