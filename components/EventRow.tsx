@@ -3,12 +3,35 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { type AtxEvent, KIND_TONE } from "@/lib/events";
+import type { PublicEvent } from "@/lib/event-fetch";
 import { Tag } from "./ui/Tag";
 import { Icon } from "./ui/Icon";
 import { Btn } from "./ui/Button";
 
 interface EventRowProps {
   e: AtxEvent;
+}
+
+interface EventRowFromPublicProps {
+  e: PublicEvent;
+}
+
+/** Adapts a PublicEvent (DB or legacy) into the legacy AtxEvent shape for
+ *  display in the EventRow card. */
+export function EventRowFromPublic({ e }: EventRowFromPublicProps) {
+  const adapted: AtxEvent = {
+    id: e.routeId,
+    day: e.day,
+    date: e.date,
+    year: e.year,
+    kind: e.kind,
+    title: e.title,
+    where: e.where || "TBA",
+    time: e.time,
+    status: e.status,
+    desc: e.description,
+  };
+  return <EventRow e={adapted} />;
 }
 
 export function EventRow({ e }: EventRowProps) {

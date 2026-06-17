@@ -41,7 +41,11 @@ function dayKeyFromDate(d: Date): string {
   return d.toISOString().slice(0, 10);
 }
 
-function emptyDashboard(range: AnalyticsRange, forms: DashboardData["formSubmissions"]): DashboardData {
+function emptyDashboard(
+  range: AnalyticsRange,
+  forms: DashboardData["formSubmissions"],
+  signupsFromEmail: number,
+): DashboardData {
   return {
     range: {
       from: range.from.toISOString(),
@@ -64,6 +68,7 @@ function emptyDashboard(range: AnalyticsRange, forms: DashboardData["formSubmiss
       "[info] No pageviews recorded yet for this range — the telemetry will fill in once visitors start arriving.",
     ],
     formSubmissions: forms,
+    signupsFromEmail,
   };
 }
 
@@ -105,12 +110,36 @@ async function fetchFormCounts(
   };
 }
 
+// Count distinct UTMs that were both clicked and within the window. Each utm
+// corresponds to one personalized email_invite link → one RSVP attribution.
+async function fetchSignupsFromEmail(range: AnalyticsRange): Promise<number> {
+  if (!isServiceClientConfigured()) return 0;
+  const supabase = createServiceClient();
+  const fromIso = range.from.toISOString();
+  const toIso = range.to.toISOString();
+  const { data, error } = await supabase
+    .from("email_sends")
+    .select("utm, clicked_at")
+    .not("clicked_at", "is", null)
+    .gte("clicked_at", fromIso)
+    .lte("clicked_at", toIso);
+  if (error) return 0;
+  const seen = new Set<string>();
+  (data ?? []).forEach((r: { utm: string | null }) => {
+    if (r.utm) seen.add(r.utm);
+  });
+  return seen.size;
+}
+
 export async function getDashboardData(days: number): Promise<DashboardData> {
   const range = rangeFromDays(days);
-  const forms = await fetchFormCounts(range);
+  const [forms, signupsFromEmail] = await Promise.all([
+    fetchFormCounts(range),
+    fetchSignupsFromEmail(range),
+  ]);
 
   if (!isServiceClientConfigured()) {
-    return emptyDashboard(range, forms);
+    return emptyDashboard(range, forms, signupsFromEmail);
   }
 
   const supabase = createServiceClient();
@@ -127,13 +156,13 @@ export async function getDashboardData(days: number): Promise<DashboardData> {
 
   if (error) {
     console.warn("[analytics] page_views read failed:", error.message);
-    return emptyDashboard(range, forms);
+    return emptyDashboard(range, forms, signupsFromEmail);
   }
 
   const rows = (pv ?? []) as PvRow[];
 
   if (rows.length === 0) {
-    return emptyDashboard(range, forms);
+    return emptyDashboard(range, forms, signupsFromEmail);
   }
 
   // Group by session_id.
@@ -293,6 +322,7 @@ export async function getDashboardData(days: number): Promise<DashboardData> {
     countries,
     insights,
     formSubmissions: forms,
+    signupsFromEmail,
   };
 }
 

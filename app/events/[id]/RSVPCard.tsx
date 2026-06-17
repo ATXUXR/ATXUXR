@@ -1,9 +1,14 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
+import { useSearchParams } from "next/navigation";
 import { z } from "zod";
-import type { AtxEvent } from "@/lib/events";
-import { buildICS } from "@/lib/events";
+import type { PublicEvent } from "@/lib/event-fetch";
+import {
+  googleCalendarUrl,
+  outlookCalendarUrl,
+  type CalendarEvent,
+} from "@/lib/calendar";
 import { Btn } from "@/components/ui/Button";
 import { Icon } from "@/components/ui/Icon";
 import { Mark } from "@/components/Mark";
@@ -25,32 +30,36 @@ const inputStyle: React.CSSProperties = {
   boxSizing: "border-box",
 };
 
-function downloadICS(e: AtxEvent) {
-  const blob = new Blob([buildICS(e)], {
-    type: "text/calendar;charset=utf-8",
-  });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download =
-    (e.title || "event").replace(/[^a-z0-9]+/gi, "-").toLowerCase() + ".ics";
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  setTimeout(() => URL.revokeObjectURL(url), 1000);
+function toCalendarEvent(e: PublicEvent): CalendarEvent {
+  return {
+    id: e.id,
+    title: e.title,
+    description: e.description,
+    location: e.address || e.where || (e.onlineUrl ? "Online" : ""),
+    startsAt: e.startsAt,
+    endsAt: e.endsAt,
+  };
 }
 
 interface Props {
-  event: AtxEvent;
+  event: PublicEvent;
   open: boolean;
 }
 
 export function RSVPCard({ event, open }: Props) {
+  const searchParams = useSearchParams();
   const [done, setDone] = useState(false);
   const [guests, setGuests] = useState(1);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [utm, setUtm] = useState<string | null>(null);
+
+  useEffect(() => {
+    const u = searchParams.get("utm");
+    if (u) setUtm(u);
+  }, [searchParams]);
 
   const submit = async (ev: FormEvent<HTMLFormElement>) => {
     ev.preventDefault();
@@ -60,9 +69,9 @@ export function RSVPCard({ event, open }: Props) {
       setError(parsed.error.issues[0]?.message ?? "Check the form.");
       return;
     }
-    // Stub: post once the route handler is wired to Supabase.
+    setBusy(true);
     try {
-      await fetch("/api/rsvp", {
+      const res = await fetch("/api/rsvp", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
@@ -70,14 +79,23 @@ export function RSVPCard({ event, open }: Props) {
           name: parsed.data.name,
           email: parsed.data.email,
           guests,
+          utm: utm ?? undefined,
         }),
-      }).catch(() => {
-        /* network errors swallowed in stub */
       });
-    } finally {
+      if (!res.ok) {
+        const data = await res.json().catch(() => null);
+        throw new Error(data?.error || "Failed to RSVP");
+      }
       setDone(true);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to RSVP");
+    } finally {
+      setBusy(false);
     }
   };
+
+  const cal = toCalendarEvent(event);
+  const icsUrl = `/events/${event.routeId}/event.ics`;
 
   return (
     <div
@@ -184,20 +202,88 @@ export function RSVPCard({ event, open }: Props) {
               style={{
                 fontSize: 14,
                 color: "var(--fg-muted)",
-                margin: "0 0 18px",
+                margin: "0 0 16px",
               }}
             >
               We sent the details to your inbox.{" "}
               {guests > 1 ? `Saved ${guests} spots.` : "See you there."}
             </p>
-            <Btn
-              variant="secondary"
-              icon="calendar-plus"
-              style={{ width: "100%", justifyContent: "center" }}
-              onClick={() => downloadICS(event)}
+
+            <div
+              style={{
+                fontFamily: "var(--font-mono)",
+                fontSize: 10.5,
+                letterSpacing: "0.1em",
+                textTransform: "uppercase",
+                color: "var(--fg-subtle)",
+                fontWeight: 700,
+                marginBottom: 10,
+                textAlign: "left",
+              }}
             >
               Add to calendar
-            </Btn>
+            </div>
+            <div
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                gap: 8,
+              }}
+            >
+              <a
+                href={googleCalendarUrl(cal)}
+                target="_blank"
+                rel="noreferrer"
+                style={{ textDecoration: "none" }}
+              >
+                <Btn
+                  variant="secondary"
+                  icon="calendar-plus"
+                  style={{ width: "100%", justifyContent: "center" }}
+                >
+                  Google Calendar
+                </Btn>
+              </a>
+              <a href={icsUrl} style={{ textDecoration: "none" }}>
+                <Btn
+                  variant="secondary"
+                  icon="apple"
+                  style={{ width: "100%", justifyContent: "center" }}
+                >
+                  Apple / iCal
+                </Btn>
+              </a>
+              <a
+                href={outlookCalendarUrl(cal)}
+                target="_blank"
+                rel="noreferrer"
+                style={{ textDecoration: "none" }}
+              >
+                <Btn
+                  variant="secondary"
+                  icon="calendar"
+                  style={{ width: "100%", justifyContent: "center" }}
+                >
+                  Outlook
+                </Btn>
+              </a>
+              {event.onlineUrl && (
+                <a
+                  href={event.onlineUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  style={{ textDecoration: "none" }}
+                >
+                  <Btn
+                    variant="primary"
+                    icon="video"
+                    style={{ width: "100%", justifyContent: "center" }}
+                  >
+                    Join online
+                  </Btn>
+                </a>
+              )}
+            </div>
           </div>
         ) : (
           <form
@@ -311,9 +397,10 @@ export function RSVPCard({ event, open }: Props) {
               size="lg"
               type="submit"
               icon="calendar-check"
+              disabled={busy}
               style={{ width: "100%", justifyContent: "center", marginTop: 4 }}
             >
-              RSVP — it&apos;s free
+              {busy ? "Saving…" : "RSVP — it's free"}
             </Btn>
             <p
               style={{

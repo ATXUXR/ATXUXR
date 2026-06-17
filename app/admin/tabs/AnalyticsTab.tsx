@@ -249,6 +249,63 @@ export function AnalyticsTab({ data, days }: Props) {
           <FormStat label="Volunteers" count={data.formSubmissions.volunteers} href="/admin?tab=volunteers" icon="hand-heart" />
           <FormStat label="Sign-ups" count={data.formSubmissions.signups} href="/admin?tab=signups" icon="mail" />
           <FormStat label="Feedback" count={data.formSubmissions.feedback} href="/admin?tab=feedback" icon="message-circle" />
+          <EmailRsvpStat
+            count={data.signupsFromEmail}
+            ofTotal={data.formSubmissions.rsvps}
+          />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function EmailRsvpStat({ count, ofTotal }: { count: number; ofTotal: number }) {
+  return (
+    <div
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: 14,
+        padding: "14px 16px",
+        border: "1px solid var(--border)",
+        borderRadius: "var(--radius-md)",
+        background: "var(--orange-50)",
+        color: "var(--fg)",
+      }}
+    >
+      <span
+        style={{
+          display: "grid",
+          placeItems: "center",
+          width: 34,
+          height: 34,
+          borderRadius: "var(--radius-sm)",
+          background: "var(--orange-100, #FFE2D4)",
+          color: "var(--orange-700)",
+          flex: "none",
+        }}
+      >
+        <Icon name="send" size={16} />
+      </span>
+      <div>
+        <div
+          style={{
+            fontFamily: "var(--font-display)",
+            fontWeight: 800,
+            fontSize: 22,
+            lineHeight: 1,
+            color: "var(--fg)",
+          }}
+        >
+          {count}
+        </div>
+        <div style={{ fontSize: 12.5, color: "var(--fg-muted)", marginTop: 4 }}>
+          RSVPs via email
+          {ofTotal > 0 && (
+            <span style={{ color: "var(--fg-subtle)" }}>
+              {" "}· of {ofTotal} total
+            </span>
+          )}
         </div>
       </div>
     </div>

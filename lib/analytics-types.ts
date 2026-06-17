@@ -22,6 +22,7 @@ export interface DashboardData {
     signups: number;
     feedback: number;
   };
+  signupsFromEmail: number;
 }
 
 export function formatDurationMs(ms: number): string {

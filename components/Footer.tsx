@@ -156,7 +156,16 @@ export function Footer() {
               color: "var(--fg-subtle)",
             }}
           >
-            <span>© 2026 ATX UXR · Austin UX Researchers</span>
+            <span>
+              © 2026 ATX UXR · Austin UX Researchers
+              <span style={{ marginLeft: 12 }}>
+                Want fewer emails?{" "}
+                <Link href="/unsubscribe" style={{ color: "var(--orange-700)" }}>
+                  Manage your subscription
+                </Link>
+                .
+              </span>
+            </span>
             <span
               style={{
                 display: "inline-flex",

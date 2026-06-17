@@ -23,6 +23,8 @@ export interface SignupRow {
   last_name: string | null;
   company: string | null;
   position: string | null;
+  unsubscribed: boolean;
+  unsubscribed_at: string | null;
   created_at: string;
 }
 
@@ -73,6 +75,22 @@ export interface EventRow {
   starts_at: string;
 }
 
+export interface EventFull {
+  id: string;
+  slug: string | null;
+  kind: "CONNECT" | "REFLECT" | "LEARN";
+  kind_label: string | null;
+  title: string;
+  description: string;
+  where_: string;
+  address: string | null;
+  online_url: string | null;
+  image: string | null;
+  starts_at: string;
+  ends_at: string | null;
+  status: "open" | "closed";
+}
+
 export interface ReactionStat {
   post_id: string;
   count: number;
@@ -85,6 +103,7 @@ export interface AdminBundle {
   signups: SignupRow[];
   rsvps: RsvpRow[];
   events: EventRow[];
+  eventsFull: EventFull[];
   volunteers: VolunteerRow[];
   feedback: FeedbackRow[];
   emails: EmailRow[];
@@ -133,7 +152,12 @@ export async function getAdminBundle(
       .from("rsvps")
       .select("*")
       .order("created_at", { ascending: false }),
-    supabase.from("events").select("id, title, kind, starts_at"),
+    supabase
+      .from("events")
+      .select(
+        "id, slug, kind, kind_label, title, description, where_, address, online_url, image, starts_at, ends_at, status",
+      )
+      .order("starts_at", { ascending: false }),
     supabase
       .from("volunteers")
       .select("*")
@@ -173,13 +197,22 @@ export async function getAdminBundle(
 
   const analytics = await getDashboardData(options.analyticsDays ?? 30);
 
+  const eventsFull = (eventsRes.data ?? []) as EventFull[];
+  const events: EventRow[] = eventsFull.map((e) => ({
+    id: e.id,
+    title: e.title,
+    kind: e.kind,
+    starts_at: e.starts_at,
+  }));
+
   return {
     pending,
     published,
     members: (membersRes.data ?? []) as AdminMember[],
     signups: (signupsRes.data ?? []) as SignupRow[],
     rsvps: (rsvpsRes.data ?? []) as RsvpRow[],
-    events: (eventsRes.data ?? []) as EventRow[],
+    events,
+    eventsFull,
     volunteers: (volunteersRes.data ?? []) as VolunteerRow[],
     feedback: (feedbackRes.data ?? []) as FeedbackRow[],
     emails: (emailsRes.data ?? []) as EmailRow[],

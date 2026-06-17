@@ -2,14 +2,31 @@ import type { Metadata } from "next";
 import { Eyebrow } from "@/components/ui/Eyebrow";
 import { EventTypes } from "@/components/EventTypes";
 import { EventsList } from "./EventsList";
-import { EVENTS } from "@/lib/events";
+import { listPublicEvents } from "@/lib/event-fetch";
 
 export const metadata: Metadata = {
   title: "Events",
   description: "Past & upcoming ATX UXR gatherings.",
 };
 
-export default function EventsPage() {
+// Always re-read on request — events are admin-editable in the DB.
+export const dynamic = "force-dynamic";
+
+export default async function EventsPage() {
+  const events = await listPublicEvents();
+  // Adapt to the legacy AtxEvent shape EventsList expects.
+  const legacy = events.map((e) => ({
+    id: e.routeId,
+    day: e.day,
+    date: e.date,
+    year: e.year,
+    kind: e.kind,
+    title: e.title,
+    where: e.where || "TBA",
+    time: e.time,
+    status: e.status,
+    desc: e.description,
+  }));
   return (
     <>
       <section
@@ -54,7 +71,7 @@ export default function EventsPage() {
 
       <EventTypes />
 
-      <EventsList events={EVENTS} />
+      <EventsList events={legacy} />
     </>
   );
 }

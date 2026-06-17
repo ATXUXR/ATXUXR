@@ -12,9 +12,12 @@ interface Props {
   signups: SignupRow[];
 }
 
+type SubFilter = "all" | "subscribed" | "unsubscribed";
+
 export function SignupsTab({ signups }: Props) {
   const [source, setSource] = useState<string>("all");
   const [activeTags, setActiveTags] = useState<Set<string>>(new Set());
+  const [subFilter, setSubFilter] = useState<SubFilter>("all");
 
   const sources = useMemo(() => {
     const set = new Set<string>();
@@ -32,8 +35,11 @@ export function SignupsTab({ signups }: Props) {
     return Array.from(counts.entries()).sort((a, b) => b[1] - a[1]);
   }, [signups]);
 
+  const unsubCount = signups.filter((s) => s.unsubscribed).length;
   const filtered = signups.filter((s) => {
     if (source !== "all" && s.source !== source) return false;
+    if (subFilter === "subscribed" && s.unsubscribed) return false;
+    if (subFilter === "unsubscribed" && !s.unsubscribed) return false;
     if (activeTags.size === 0) return true;
     const tags = s.tags || [];
     for (const t of activeTags) if (!tags.includes(t)) return false;
@@ -104,6 +110,45 @@ export function SignupsTab({ signups }: Props) {
               ))}
             </select>
           )}
+          {(
+            [
+              ["all", "All"],
+              ["subscribed", "Subscribed"],
+              ["unsubscribed", `Unsubscribed${unsubCount ? ` (${unsubCount})` : ""}`],
+            ] as const
+          ).map(([k, lbl]) => {
+            const on = subFilter === k;
+            const isUnsub = k === "unsubscribed";
+            return (
+              <button
+                key={k}
+                type="button"
+                onClick={() => setSubFilter(k as SubFilter)}
+                style={{
+                  cursor: "pointer",
+                  fontSize: 12.5,
+                  fontWeight: 600,
+                  padding: "6px 11px",
+                  borderRadius: "var(--radius-pill)",
+                  border:
+                    "1.5px solid " +
+                    (on
+                      ? isUnsub
+                        ? "var(--danger)"
+                        : "var(--primary)"
+                      : "var(--border-strong)"),
+                  background: on
+                    ? isUnsub
+                      ? "var(--danger)"
+                      : "var(--primary)"
+                    : "var(--surface)",
+                  color: on ? "#fff" : "var(--fg-muted)",
+                }}
+              >
+                {lbl}
+              </button>
+            );
+          })}
         </div>
         <Btn
           variant="secondary"
@@ -263,7 +308,34 @@ export function SignupsTab({ signups }: Props) {
                       color: "var(--fg-muted)",
                     }}
                   >
-                    {s.email}
+                    <span
+                      style={{
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: 8,
+                        flexWrap: "wrap",
+                      }}
+                    >
+                      <span>{s.email}</span>
+                      {s.unsubscribed && (
+                        <span
+                          style={{
+                            fontFamily: "var(--font-mono)",
+                            fontSize: 9.5,
+                            letterSpacing: "0.08em",
+                            textTransform: "uppercase",
+                            fontWeight: 700,
+                            padding: "2px 7px",
+                            borderRadius: "var(--radius-pill)",
+                            background: "var(--danger-bg)",
+                            color: "var(--danger)",
+                            border: "1px solid var(--danger)",
+                          }}
+                        >
+                          Unsubscribed
+                        </span>
+                      )}
+                    </span>
                   </td>
                   <td style={{ padding: "13px 16px" }}>
                     <Tag tone="teal" style={{ fontSize: 9.5 }}>

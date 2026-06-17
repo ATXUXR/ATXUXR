@@ -1,30 +1,28 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { EVENTS, KIND_TONE, getEventById } from "@/lib/events";
+import { KIND_TONE } from "@/lib/events";
+import { getPublicEvent, listPublicEvents } from "@/lib/event-fetch";
 import { Mark } from "@/components/Mark";
 import { Icon } from "@/components/ui/Icon";
 import { Tag } from "@/components/ui/Tag";
 import { Eyebrow } from "@/components/ui/Eyebrow";
-import { EventRow } from "@/components/EventRow";
+import { EventRowFromPublic } from "@/components/EventRow";
+import { MapEmbed } from "@/components/MapEmbed";
 import { RSVPCard } from "./RSVPCard";
 
 interface Props {
   params: Promise<{ id: string }>;
 }
 
-export function generateStaticParams() {
-  return EVENTS.map((e) => ({ id: e.id }));
-}
-
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { id } = await params;
-  const e = getEventById(id);
+  const e = await getPublicEvent(id);
   if (!e) return { title: "Event" };
   return {
     title: e.title,
-    description: e.desc,
-    openGraph: { title: e.title, description: e.desc },
+    description: e.description,
+    openGraph: { title: e.title, description: e.description },
   };
 }
 
@@ -59,13 +57,15 @@ function Fact({ icon, label }: { icon: string; label: string }) {
 
 export default async function EventDetailPage({ params }: Props) {
   const { id } = await params;
-  const e = getEventById(id);
+  const e = await getPublicEvent(id);
   if (!e) notFound();
 
   const tone = KIND_TONE[e.kind];
   const open = e.status === "open";
   const grad = GRAD[tone];
-  const related = EVENTS.filter((x) => x.id !== e.id).slice(0, 2);
+  const all = await listPublicEvents();
+  const related = all.filter((x) => x.routeId !== e.routeId).slice(0, 2);
+  const isZoom = !!(e.onlineUrl && /zoom\./.test(e.onlineUrl));
 
   return (
     <>
@@ -91,7 +91,9 @@ export default async function EventDetailPage({ params }: Props) {
             style={{
               height: 240,
               borderRadius: "var(--radius-2xl)",
-              background: grad,
+              background: e.image
+                ? `center / cover no-repeat url(${e.image}), ${grad}`
+                : grad,
               position: "relative",
               overflow: "hidden",
               display: "flex",
@@ -99,20 +101,24 @@ export default async function EventDetailPage({ params }: Props) {
               padding: 28,
             }}
           >
-            <div
-              style={{
-                position: "absolute",
-                inset: 0,
-                background:
-                  "radial-gradient(120% 90% at 80% 0%, rgba(255,255,255,.30), transparent 55%)",
-              }}
-            />
-            <div style={{ position: "absolute", top: -30, right: 26, opacity: 0.22 }}>
-              <Mark variant="white" height={200} />
-            </div>
+            {!e.image && (
+              <div
+                style={{
+                  position: "absolute",
+                  inset: 0,
+                  background:
+                    "radial-gradient(120% 90% at 80% 0%, rgba(255,255,255,.30), transparent 55%)",
+                }}
+              />
+            )}
+            {!e.image && (
+              <div style={{ position: "absolute", top: -30, right: 26, opacity: 0.22 }}>
+                <Mark variant="white" height={200} />
+              </div>
+            )}
             <div style={{ position: "relative", display: "flex", gap: 8 }}>
               <Tag tone="ink" style={{ fontSize: 11 }}>
-                {e.kind}
+                {e.kindLabel || e.kind}
               </Tag>
               {open ? (
                 <Tag
@@ -175,7 +181,7 @@ export default async function EventDetailPage({ params }: Props) {
             >
               <Fact icon="calendar" label={`${e.day} · ${e.date}, ${e.year}`} />
               <Fact icon="clock" label={e.time} />
-              <Fact icon="map-pin" label={e.where} />
+              <Fact icon="map-pin" label={e.where || "TBA"} />
             </div>
             <h3 style={{ fontSize: 20, margin: "0 0 10px" }}>About this event</h3>
             <p
@@ -186,7 +192,7 @@ export default async function EventDetailPage({ params }: Props) {
                 maxWidth: "62ch",
               }}
             >
-              {e.desc}
+              {e.description}
             </p>
             <p
               style={{
@@ -202,64 +208,38 @@ export default async function EventDetailPage({ params }: Props) {
               ATX.
             </p>
 
-            <h3 style={{ fontSize: 20, margin: "32px 0 12px" }}>Location</h3>
-            <div
-              style={{
-                borderRadius: "var(--radius-lg)",
-                overflow: "hidden",
-                border: "1px solid var(--border)",
-              }}
-            >
-              <div
-                style={{
-                  height: 150,
-                  background:
-                    "repeating-linear-gradient(45deg, var(--sand), var(--sand) 14px, var(--neutral-100) 14px, var(--neutral-100) 28px)",
-                  position: "relative",
-                }}
-              >
-                <span
-                  style={{
-                    position: "absolute",
-                    top: "50%",
-                    left: "50%",
-                    transform: "translate(-50%,-100%)",
-                    color: "var(--primary)",
-                  }}
-                >
-                  <Icon name="map-pin" size={40} />
-                </span>
-              </div>
-              <div
-                style={{
-                  background: "var(--surface)",
-                  padding: "14px 18px",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                  gap: 12,
-                }}
-              >
-                <span style={{ fontSize: 14.5, fontWeight: 600 }}>{e.where}</span>
+            {e.onlineUrl && (
+              <div style={{ marginTop: 28 }}>
+                <h3 style={{ fontSize: 20, margin: "0 0 12px" }}>Join online</h3>
                 <a
-                  href={`https://www.google.com/maps/search/${encodeURIComponent(
-                    e.where,
-                  )}`}
+                  href={e.onlineUrl}
                   target="_blank"
                   rel="noreferrer"
                   style={{
                     display: "inline-flex",
                     alignItems: "center",
-                    gap: 6,
-                    fontSize: 14,
+                    gap: 9,
+                    padding: "11px 20px",
+                    borderRadius: "var(--radius-md)",
+                    background: "var(--primary)",
+                    color: "#fff",
                     fontWeight: 600,
-                    color: "var(--orange-700)",
+                    fontSize: 14.5,
+                    textDecoration: "none",
                   }}
                 >
-                  Get directions <Icon name="external-link" size={15} />
+                  <Icon name={isZoom ? "video" : "external-link"} size={17} />
+                  {isZoom ? "Join on Zoom" : "Join online"}
                 </a>
               </div>
-            </div>
+            )}
+
+            {e.address && (
+              <div style={{ marginTop: 28 }}>
+                <h3 style={{ fontSize: 20, margin: "0 0 12px" }}>Location</h3>
+                <MapEmbed address={e.address} />
+              </div>
+            )}
           </div>
 
           <div style={{ position: "sticky", top: 92 }} className="rsvp-card">
@@ -268,24 +248,26 @@ export default async function EventDetailPage({ params }: Props) {
         </div>
       </section>
 
-      <section
-        style={{
-          background: "var(--bg-alt)",
-          borderTop: "1px solid var(--border)",
-        }}
-      >
-        <div style={{ maxWidth: 1140, margin: "0 auto", padding: "64px 28px" }}>
-          <Eyebrow style={{ marginBottom: 14 }}>MORE GATHERINGS</Eyebrow>
-          <h2 style={{ fontSize: "var(--text-2xl)", margin: "0 0 26px" }}>
-            You might also like
-          </h2>
-          <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-            {related.map((r) => (
-              <EventRow key={r.id} e={r} />
-            ))}
+      {related.length > 0 && (
+        <section
+          style={{
+            background: "var(--bg-alt)",
+            borderTop: "1px solid var(--border)",
+          }}
+        >
+          <div style={{ maxWidth: 1140, margin: "0 auto", padding: "64px 28px" }}>
+            <Eyebrow style={{ marginBottom: 14 }}>MORE GATHERINGS</Eyebrow>
+            <h2 style={{ fontSize: "var(--text-2xl)", margin: "0 0 26px" }}>
+              You might also like
+            </h2>
+            <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+              {related.map((r) => (
+                <EventRowFromPublic key={r.routeId} e={r} />
+              ))}
+            </div>
           </div>
-        </div>
-      </section>
+        </section>
+      )}
     </>
   );
 }

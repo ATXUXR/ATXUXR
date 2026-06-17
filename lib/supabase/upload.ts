@@ -5,7 +5,7 @@ export interface UploadResult {
   path: string;
 }
 
-export type UploadBucket = "avatars" | "covers";
+export type UploadBucket = "avatars" | "covers" | "events";
 
 /**
  * Upload a File to the given Supabase Storage bucket under the current user's
