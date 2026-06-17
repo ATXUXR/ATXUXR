@@ -1,0 +1,111 @@
+/* global React, Eyebrow, EventTypes, EventRow, Mailing, Icon, Tag, Btn, Modal, Field, Input, Textarea, useStore, Store */
+function Events({ openEvent }) {
+  useStore();
+  const [filter, setFilter] = React.useState('ALL');
+  const [composing, setComposing] = React.useState(false);
+  const kinds = ['ALL', 'CONNECT', 'REFLECT', 'LEARN'];
+  const me = Store.currentUser();
+  const isAdmin = me && me.admin;
+  const all = Store.sortedEvents();
+  const list = filter === 'ALL' ? all : all.filter((e) => e.kind === filter);
+  return (
+    <React.Fragment>
+      <section style={{ position: 'relative', overflow: 'hidden', borderBottom: '1px solid var(--border)' }}>
+        <div style={{ position: 'absolute', top: -280, left: '50%', transform: 'translateX(-50%)', width: 900, height: 560,
+          background: 'radial-gradient(circle at 50% 50%, rgba(238,74,28,0.16), transparent 64%)', pointerEvents: 'none' }} />
+        <div style={{ maxWidth: 1140, margin: '0 auto', padding: '64px 28px 40px', position: 'relative', display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 24, flexWrap: 'wrap' }}>
+          <div>
+            <Eyebrow style={{ marginBottom: 14 }}>GATHER WITH US</Eyebrow>
+            <h1 style={{ fontSize: 'clamp(2.2rem, 1.4rem + 2.4vw, 3.4rem)', margin: 0 }}>Past &amp; upcoming events</h1>
+          </div>
+          {isAdmin && <Btn variant="primary" size="lg" icon="plus" onClick={() => setComposing(true)}>Post an event</Btn>}
+        </div>
+      </section>
+
+      <EventTypes />
+
+      <section style={{ background: 'var(--bg)' }}>
+        <div style={{ maxWidth: 1140, margin: '0 auto', padding: '64px 28px 80px' }}>
+          <div style={{ display: 'flex', gap: 10, marginBottom: 28, flexWrap: 'wrap' }}>
+            {kinds.map((k) => (
+              <button key={k} onClick={() => setFilter(k)} style={{ cursor: 'pointer', fontFamily: 'var(--font-mono)', fontWeight: 700, fontSize: 12, letterSpacing: '0.1em',
+                padding: '8px 16px', borderRadius: 'var(--radius-pill)', border: '1.5px solid ' + (filter === k ? 'var(--primary)' : 'var(--border-strong)'),
+                background: filter === k ? 'var(--primary)' : 'transparent', color: filter === k ? '#fff' : 'var(--fg-muted)', transition: 'var(--transition)' }}>{k}</button>
+            ))}
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+            {list.map((e) => <EventRow key={e.id} e={e} onOpen={openEvent} />)}
+          </div>
+        </div>
+      </section>
+
+      <Mailing />
+      <EventForm open={composing} onClose={() => setComposing(false)} onCreate={(data) => { const ev = Store.createEvent(data); setComposing(false); openEvent(ev); }} />
+    </React.Fragment>
+  );
+}
+
+const MONTHS = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
+const DAYS = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
+
+function EventForm({ open, onClose, onCreate }) {
+  const [title, setTitle] = React.useState('');
+  const [kind, setKind] = React.useState('CONNECT');
+  const [date, setDate] = React.useState('');
+  const [time, setTime] = React.useState('');
+  const [where, setWhere] = React.useState('');
+  const [desc, setDesc] = React.useState('');
+  const [err, setErr] = React.useState('');
+
+  React.useEffect(() => { if (open) { setTitle(''); setKind('CONNECT'); setDate(''); setTime(''); setWhere(''); setDesc(''); setErr(''); } }, [open]);
+
+  const submit = (e) => {
+    e.preventDefault();
+    if (!title.trim() || !date || !time.trim() || !where.trim()) { setErr('Fill in the title, date, time, and location.'); return; }
+    const d = new Date(date + 'T00:00:00');
+    const payload = {
+      title: title.trim(), kind,
+      day: DAYS[d.getDay()], date: MONTHS[d.getMonth()] + ' ' + String(d.getDate()).padStart(2, '0'), year: String(d.getFullYear()),
+      time: time.trim(), where: where.trim(), desc: desc.trim(), status: 'open',
+    };
+    onCreate(payload);
+  };
+
+  const selectStyle = { fontFamily: 'var(--font-sans)', fontSize: 15, padding: '12px 14px', borderRadius: 'var(--radius-md)', border: '1.5px solid var(--border-strong)', background: 'var(--surface)', color: 'var(--fg)', width: '100%', boxSizing: 'border-box' };
+
+  return (
+    <Modal open={open} onClose={onClose} width={560}>
+      <div style={{ padding: '34px 34px 32px' }}>
+        <div style={{ marginBottom: 22 }}>
+          <div style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, fontSize: 12, letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--primary)', marginBottom: 10 }}>NEW EVENT</div>
+          <h2 style={{ fontSize: 26, margin: 0 }}>Post an event</h2>
+        </div>
+        {err && <div style={{ display: 'flex', alignItems: 'center', gap: 9, fontSize: 14, color: 'var(--danger)', background: 'var(--danger-bg)', padding: '11px 14px', borderRadius: 'var(--radius-md)', marginBottom: 18 }}><Icon name="alert-circle" size={17} />{err}</div>}
+        <form onSubmit={submit} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <Field label="Event title"><Input value={title} onChange={setTitle} placeholder="Networking Happy Hour" /></Field>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }} className="setup-row">
+            <Field label="Type">
+              <select value={kind} onChange={(e) => setKind(e.target.value)} style={selectStyle}>
+                <option value="CONNECT">Connect</option>
+                <option value="REFLECT">Reflect</option>
+                <option value="LEARN">Learn</option>
+              </select>
+            </Field>
+            <Field label="Date"><input type="date" value={date} onChange={(e) => setDate(e.target.value)} style={selectStyle} /></Field>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }} className="setup-row">
+            <Field label="Time"><Input value={time} onChange={setTime} placeholder="5:30 – 8:30 PM" /></Field>
+            <Field label="Location"><Input value={where} onChange={setWhere} placeholder="Bouldin Acres" /></Field>
+          </div>
+          <Field label="Description"><Textarea value={desc} onChange={setDesc} rows={3} placeholder="What's this gathering about?" /></Field>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 12, paddingTop: 6, borderTop: '1px solid var(--border)' }}>
+            <Btn variant="secondary" onClick={onClose}>Cancel</Btn>
+            <Btn variant="primary" size="lg" type="submit" icon="calendar-plus">Publish event</Btn>
+          </div>
+        </form>
+      </div>
+    </Modal>
+  );
+}
+
+Object.assign(window, { Events, EventForm });

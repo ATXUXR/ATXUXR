@@ -1,0 +1,100 @@
+/* global React, Wordmark, Btn, Icon, Avatar, Store */
+function Nav({ view, setView, user, openAuth, openProfile, editProfile, goContribute, onLogout }) {
+  const [open, setOpen] = React.useState(false);
+  const [menu, setMenu] = React.useState(false);
+  const [scrolled, setScrolled] = React.useState(false);
+  const menuRef = React.useRef(null);
+  React.useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 12);
+    window.addEventListener('scroll', onScroll);
+    return () => window.removeEventListener('scroll', onScroll);
+  }, []);
+  React.useEffect(() => {
+    const onDoc = (e) => { if (menuRef.current && !menuRef.current.contains(e.target)) setMenu(false); };
+    document.addEventListener('mousedown', onDoc);
+    return () => document.removeEventListener('mousedown', onDoc);
+  }, []);
+  const links = [['Home', 'home'], ['Events', 'events'], ['Blog', 'blog'], ['Community', 'community'], ['Volunteer', 'volunteer'], ['Donate', 'donate']];
+  const go = (v) => { setView(v); setOpen(false); window.scrollTo({ top: 0, behavior: 'smooth' }); };
+
+  const menuItem = (icon, label, fn, danger) => (
+    <button type="button" onClick={() => { setMenu(false); fn(); }} style={{ display: 'flex', alignItems: 'center', gap: 11, width: '100%', textAlign: 'left', padding: '11px 16px', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'var(--font-sans)', fontSize: 14.5, fontWeight: 500, color: danger ? 'var(--danger)' : 'var(--fg)' }}
+      onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--surface-sunk)'; }} onMouseLeave={(e) => { e.currentTarget.style.background = 'none'; }}>
+      <Icon name={icon} size={17} style={{ color: danger ? 'var(--danger)' : 'var(--fg-muted)' }} /> {label}
+    </button>
+  );
+
+  return (
+    <header style={{ position: 'sticky', top: 0, zIndex: 60,
+      background: scrolled ? 'rgba(248,244,238,0.85)' : 'rgba(248,244,238,0)',
+      backdropFilter: scrolled ? 'blur(12px)' : 'none',
+      borderBottom: scrolled ? '1px solid var(--border)' : '1px solid transparent', transition: 'var(--transition)' }}>
+      <div style={{ maxWidth: 1180, margin: '0 auto', padding: '0 28px', height: 73, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16 }}>
+        <a href="#" onClick={(e) => { e.preventDefault(); go('home'); }} style={{ display: 'flex', flex: 'none' }}><Wordmark height={30} /></a>
+        <nav className="nav-desktop" style={{ display: 'flex', alignItems: 'center', gap: 22 }}>
+          {links.map(([l, v]) => (
+            <a key={v} href="#" onClick={(e) => { e.preventDefault(); go(v); }}
+              style={{ fontSize: 14.5, fontWeight: 600, color: view === v ? 'var(--primary)' : 'var(--fg)', position: 'relative', whiteSpace: 'nowrap' }}>
+              {l}
+              {view === v && <span style={{ position: 'absolute', left: 0, right: 0, bottom: -6, height: 2, background: 'var(--primary)', borderRadius: 2 }} />}
+            </a>
+          ))}
+          {user ? (
+            <div ref={menuRef} style={{ position: 'relative' }}>
+              <button type="button" onClick={() => setMenu(!menu)} style={{ display: 'flex', alignItems: 'center', gap: 7, padding: 3, paddingRight: 9, borderRadius: 'var(--radius-pill)', border: '1.5px solid var(--border-strong)', background: 'var(--surface)', cursor: 'pointer' }}>
+                <Avatar member={user} size={30} />
+                <Icon name="chevron-down" size={15} style={{ color: 'var(--fg-muted)' }} />
+              </button>
+              {menu && (
+                <div style={{ position: 'absolute', right: 0, top: 'calc(100% + 10px)', width: 244, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)', boxShadow: 'var(--shadow-lg)', overflow: 'hidden', paddingBottom: 6 }}>
+                  <div style={{ padding: '16px 16px 14px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: 11 }}>
+                    <Avatar member={user} size={40} />
+                    <div style={{ minWidth: 0 }}>
+                      <div style={{ fontSize: 14.5, fontWeight: 700, color: 'var(--fg)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{user.name || 'Your profile'}</div>
+                      <div style={{ fontSize: 12, color: 'var(--fg-subtle)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{user.email}</div>
+                    </div>
+                  </div>
+                  <div style={{ paddingTop: 6 }}>
+                    {menuItem('user', 'My profile', () => openProfile(user.id))}
+                    {menuItem('settings', 'Edit profile', () => editProfile())}
+                    {menuItem('pen-line', 'Write a post', () => goContribute())}
+                    {user.admin && menuItem('shield', 'Admin dashboard', () => go('admin'))}
+                  </div>
+                  <div style={{ borderTop: '1px solid var(--border)', paddingTop: 6 }}>
+                    {menuItem('log-out', 'Sign out', () => onLogout(), true)}
+                  </div>
+                </div>
+              )}
+            </div>
+          ) : (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+              <a href="#" onClick={(e) => { e.preventDefault(); openAuth('login'); }} style={{ fontSize: 14.5, fontWeight: 600, color: 'var(--fg)', whiteSpace: 'nowrap' }}>Sign in</a>
+              <Btn variant="primary" size="sm" icon="user-plus" onClick={() => openAuth('signup')}>Join</Btn>
+            </div>
+          )}
+        </nav>
+        <button className="nav-burger" onClick={() => setOpen(!open)} aria-label="Menu"
+          style={{ display: 'none', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--fg)' }}><Icon name={open ? 'x' : 'menu'} size={26} /></button>
+      </div>
+      {open && (
+        <div style={{ padding: '8px 28px 22px', borderTop: '1px solid var(--border)', background: 'var(--paper)' }}>
+          {links.map(([l, v]) => <a key={v} href="#" onClick={(e) => { e.preventDefault(); go(v); }} style={{ display: 'block', padding: '12px 0', fontSize: 17, fontWeight: 600, borderBottom: '1px solid var(--border)', color: view === v ? 'var(--primary)' : 'var(--fg)' }}>{l}</a>)}
+          {user ? (
+            <div style={{ paddingTop: 8 }}>
+              <a href="#" onClick={(e) => { e.preventDefault(); setOpen(false); openProfile(user.id); }} style={{ display: 'block', padding: '12px 0', fontSize: 16, fontWeight: 600, color: 'var(--fg)' }}>My profile</a>
+              <a href="#" onClick={(e) => { e.preventDefault(); setOpen(false); goContribute(); }} style={{ display: 'block', padding: '12px 0', fontSize: 16, fontWeight: 600, color: 'var(--fg)' }}>Write a post</a>
+              {user.admin && <a href="#" onClick={(e) => { e.preventDefault(); go('admin'); }} style={{ display: 'block', padding: '12px 0', fontSize: 16, fontWeight: 600, color: 'var(--fg)' }}>Admin dashboard</a>}
+              <a href="#" onClick={(e) => { e.preventDefault(); setOpen(false); onLogout(); }} style={{ display: 'block', padding: '12px 0', fontSize: 16, fontWeight: 600, color: 'var(--danger)' }}>Sign out</a>
+            </div>
+          ) : (
+            <div style={{ display: 'flex', gap: 12, paddingTop: 14 }}>
+              <Btn variant="secondary" onClick={() => { setOpen(false); openAuth('login'); }} style={{ flex: 1, justifyContent: 'center' }}>Sign in</Btn>
+              <Btn variant="primary" icon="user-plus" onClick={() => { setOpen(false); openAuth('signup'); }} style={{ flex: 1, justifyContent: 'center' }}>Join</Btn>
+            </div>
+          )}
+        </div>
+      )}
+    </header>
+  );
+}
+window.Nav = Nav;

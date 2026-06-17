@@ -1,0 +1,505 @@
+/* global React */
+// ATX UXR — Blog + Community data layer.
+// Frontend-only persistence via localStorage so a Claude-cowork deploy can swap
+// these helpers for a real API later. All reads/writes funnel through `Store`.
+
+const LS_KEY = 'atxuxr:v2';
+
+// ---- Curated UXR topic tags (people can also add their own) ----
+const TAG_SUGGESTIONS = [
+  'AI & Research', 'Research Methods', 'ResearchOps', 'Qualitative', 'Quantitative',
+  'Survey Design', 'Interviewing', 'Synthesis', 'Career', 'Stakeholders',
+  'Strategy', 'Accessibility', 'Storytelling', 'Tools', 'Mixed Methods',
+  'Continuous Discovery', 'Ethics', 'Onboarding',
+];
+
+// tone rotation so tag chips & covers feel varied but on-brand
+const TAG_TONES = ['flame', 'teal', 'honey', 'ink'];
+function toneForTag(tag) {
+  let h = 0;
+  for (let i = 0; i < tag.length; i++) h = (h * 31 + tag.charCodeAt(i)) >>> 0;
+  return TAG_TONES[h % TAG_TONES.length];
+}
+
+// avatar fallback colors (deterministic from a string)
+const AVATAR_TONES = [
+  { bg: 'var(--orange-50)', fg: 'var(--orange-700)' },
+  { bg: 'var(--teal-50)', fg: 'var(--teal-700)' },
+  { bg: 'var(--honey-100)', fg: 'var(--honey-700)' },
+  { bg: 'var(--neutral-100)', fg: 'var(--neutral-700)' },
+];
+function toneForName(name) {
+  let h = 0;
+  for (let i = 0; i < (name || '').length; i++) h = (h * 31 + name.charCodeAt(i)) >>> 0;
+  return AVATAR_TONES[h % AVATAR_TONES.length];
+}
+function initials(name) {
+  return (name || '?').trim().split(/\s+/).slice(0, 2).map((s) => s[0] || '').join('').toUpperCase();
+}
+
+const uid = () => Math.random().toString(36).slice(2, 10);
+function readMinutes(html) {
+  const words = (html || '').replace(/<[^>]+>/g, ' ').trim().split(/\s+/).length;
+  return Math.max(1, Math.round(words / 200));
+}
+
+// ============================================================
+// SEED DATA
+// ============================================================
+function seedMembers() {
+  return [
+    { id: 'u_admin', name: 'Maral Elliott', email: 'maral@atxuxr.com', photo: null,
+      role: 'Founder & Lead Organizer', company: 'ATX UXR', linkedin: 'https://linkedin.com/in/maralelliott',
+      website: 'https://austinuxresearchers.com', location: 'Austin, TX', admin: true,
+      bio: 'Building the people-people of ATX. UX research leader passionate about community, mentorship, and the future of our craft in an AI world.',
+      expertise: ['Strategy', 'ResearchOps', 'Career'], joined: '2024-06-01' },
+    { id: 'u_dev', name: 'Devon Ramirez', email: 'devon.r@example.com', photo: null,
+      role: 'Senior UX Researcher', company: 'Indeed', linkedin: 'https://linkedin.com/in/devonramirez', website: '',
+      location: 'Austin, TX', admin: false,
+      bio: 'Mixed-methods researcher focused on hiring & marketplace experiences. Recovering perfectionist, forever curious.',
+      expertise: ['Mixed Methods', 'Quantitative', 'Survey Design'], joined: '2024-07-12' },
+    { id: 'u_pri', name: 'Priya Nadkarni', email: 'priya.n@example.com', photo: null,
+      role: 'Staff Researcher', company: 'Atlassian', linkedin: 'https://linkedin.com/in/priyanadkarni', website: 'https://priyanresearch.com',
+      location: 'Austin, TX', admin: false,
+      bio: 'Continuous discovery evangelist. I help teams build the research muscle, not just run the study.',
+      expertise: ['Continuous Discovery', 'Stakeholders', 'Strategy'], joined: '2024-09-03' },
+    { id: 'u_jam', name: 'James Okafor', email: 'james.o@example.com', photo: null,
+      role: 'UX Research Lead', company: 'Dell Technologies', linkedin: 'https://linkedin.com/in/jamesokafor', website: '',
+      location: 'Round Rock, TX', admin: false,
+      bio: 'Enterprise & B2B research. I care a lot about research repositories and making insights findable.',
+      expertise: ['ResearchOps', 'Synthesis', 'Tools'], joined: '2024-10-20' },
+    { id: 'u_sof', name: 'Sofia Chen', email: 'sofia.c@example.com', photo: null,
+      role: 'Design Researcher', company: 'Self-employed', linkedin: 'https://linkedin.com/in/sofiachen', website: 'https://sofiachen.studio',
+      location: 'Austin, TX', admin: false,
+      bio: 'Independent design researcher & facilitator. Ethnography, service design, and a soft spot for messy real-world studies.',
+      expertise: ['Qualitative', 'Ethics', 'Interviewing'], joined: '2025-01-15' },
+    { id: 'u_tyl', name: 'Tyler Brooks', email: 'tyler.b@example.com', photo: null,
+      role: 'Junior UX Researcher', company: 'Q2', linkedin: 'https://linkedin.com/in/tylerbrooks', website: '',
+      location: 'Austin, TX', admin: false,
+      bio: 'New to the field and loving it. Fintech research, usability testing, and asking "why" a lot.',
+      expertise: ['Interviewing', 'Career'], joined: '2025-03-08' },
+  ];
+}
+
+function seedPosts() {
+  const p = (o) => ({ status: 'published', cover: null, ...o, readMins: readMinutes(o.body) });
+  return [
+    p({
+      id: 'po_ai', authorId: 'u_pri', date: '2026-05-28',
+      title: 'Research in the age of AI: what actually changed, and what didn’t',
+      tags: ['AI & Research', 'Strategy', 'Research Methods'],
+      excerpt: 'AI didn’t replace the researcher — it moved the bottleneck. A field-note on where synthesis tools help, where they quietly mislead, and the judgment that still has to be human.',
+      body: `<p>Every other week someone forwards me a tool that promises to "automate" user research. I’ve tried most of them. Here’s the honest version of what changed for my team this past year — and what stubbornly stayed the same.</p>
+<h2>Where AI genuinely helped</h2>
+<p>Transcription went from a chore to a non-event. Tagging a first pass of fifteen interviews used to eat a full day; now I get a rough scaffold in minutes and spend my time <em>arguing with it</em> rather than building it from scratch.</p>
+<ul><li>First-pass affinity clusters as a starting point, never the answer.</li><li>Drafting the boring 80% of a readout so I can rewrite the 20% that matters.</li><li>Catching the question I forgot to ask across a dozen sessions.</li></ul>
+<h2>Where it quietly misled us</h2>
+<p>The summaries are confident. That’s the problem. A model will smooth over the one participant who contradicted everyone else — and that participant is often the most interesting signal in the room.</p>
+<blockquote>The bottleneck was never transcription. It was judgment. AI moved work toward the part of the job that was always the hard part.</blockquote>
+<h2>What didn’t change at all</h2>
+<p>Recruiting the right people. Building stakeholder trust. Knowing which question is worth answering this quarter. None of that got easier. If anything, the faster we can produce <em>output</em>, the more our value sits in deciding what’s worth producing.</p>
+<p>So: use the tools. Just don’t outsource the part of the job that was always yours.</p>`,
+    }),
+    p({
+      id: 'po_disc', authorId: 'u_pri', date: '2026-05-10',
+      title: 'Continuous discovery without burning out your team',
+      tags: ['Continuous Discovery', 'Stakeholders', 'ResearchOps'],
+      excerpt: 'Weekly touchpoints sound great until they become a treadmill. How we kept a discovery habit alive for a year without grinding the team into dust.',
+      body: `<p>"Talk to a customer every week" is great advice and a terrible mandate. We tried the purist version and nearly broke our PMs. Here’s the version that actually stuck.</p>
+<h2>Make the cadence cheap</h2>
+<p>The expensive part of research isn’t the conversation — it’s the setup. We invested once in a standing recruit panel and a 20-minute interview template, and suddenly "this week’s call" cost almost nothing to spin up.</p>
+<h2>Rotate the burden</h2>
+<p>One person owning all discovery is how discovery dies when that person takes PTO. We rotate who runs the weekly call across the trio — PM, designer, researcher — with the researcher coaching rather than doing.</p>
+<blockquote>A habit a team can sustain beats a rigorous practice it abandons in six weeks.</blockquote>
+<p>Is it as clean as a dedicated study? No. But it keeps the team in contact with reality, and the big studies get sharper because we already know what questions matter.</p>`,
+    }),
+    p({
+      id: 'po_survey', authorId: 'u_dev', date: '2026-04-22',
+      title: 'Five survey mistakes I still catch myself making',
+      tags: ['Survey Design', 'Quantitative', 'Research Methods'],
+      excerpt: 'After a hundred surveys you’d think the lessons stick. They don’t. A short, slightly embarrassing list of the traps I keep falling into — and the checks I run now.',
+      body: `<p>I write a lot of surveys. I also break a lot of surveys. Here are the five mistakes that keep coming back, no matter how many times I learn them.</p>
+<h2>1. Asking two things in one question</h2>
+<p>"How satisfied are you with the speed and accuracy of search?" Speed and accuracy are different things and people who feel differently about each have nowhere to go.</p>
+<h2>2. Scales that don’t have a real middle</h2>
+<p>A four-point scale forces a lean. Sometimes that’s what you want. Often it just hides the people who genuinely feel neutral.</p>
+<h2>3. Trusting the open-text box to save me</h2>
+<p>It won’t. If the closed questions are wrong, "Anything else?" doesn’t fix the data — it just gives you a comforting handful of quotes.</p>
+<h2>4. Forgetting who isn’t in the sample</h2>
+<p>The people who churned aren’t taking your in-product survey. Your most negative signal already left the building.</p>
+<h2>5. Shipping before a pilot</h2>
+<p>Five pilot responses catch 80% of the wording disasters. I skip this step roughly never on purpose and always under deadline.</p>`,
+    }),
+    p({
+      id: 'po_repo', authorId: 'u_jam', date: '2026-04-05',
+      title: 'Your research repository is a graveyard. Here’s how to revive it',
+      tags: ['ResearchOps', 'Synthesis', 'Tools'],
+      excerpt: 'Everyone builds the repo. Almost nobody uses it. A practical take on why insight libraries rot and the small habits that keep them alive.',
+      body: `<p>We’ve all done it: stood up a beautiful, tagged, searchable research repository — and watched it become a place insights go to die. Here’s what I’ve learned about keeping one breathing.</p>
+<h2>Nobody searches a graveyard</h2>
+<p>A repo only gets used if people believe there’s something alive in it. That belief is built by <em>pushing</em>, not waiting for people to pull. Every readout should end with a link, and that link should still work in a year.</p>
+<h2>Atomic insights over giant decks</h2>
+<p>A 60-slide report is unsearchable. A single claim — "users abandon at the address step" — with evidence attached is something a PM can actually find and reuse.</p>
+<blockquote>If a finding can’t be found in fifteen seconds, for most teams it doesn’t exist.</blockquote>
+<h2>Curate, don’t hoard</h2>
+<p>Not every study deserves to live forever. Prune ruthlessly. A small, trusted library beats an exhaustive one nobody believes.</p>`,
+    }),
+    p({
+      id: 'po_break', authorId: 'u_tyl', date: '2026-03-18',
+      title: 'Breaking into UX research: what the bootcamps don’t tell you',
+      tags: ['Career', 'Interviewing'],
+      excerpt: 'Eight months into my first research role, here’s the unglamorous truth about getting in — and the stuff I wish someone had told me before I started applying.',
+      body: `<p>I’m eight months into my first UX research job. Close enough to remember the scramble, far enough to see what actually mattered. If you’re trying to break in, here’s my honest brain-dump.</p>
+<h2>Your portfolio is a thinking sample, not a highlight reel</h2>
+<p>Hiring managers don’t need polished outcomes. They want to see how you decided what to study, what you did when it went sideways, and what you’d do differently. Show the mess.</p>
+<h2>Community got me the interview</h2>
+<p>Two of my three interviews came from people I met at community events — including this one. Showing up consistently beats a perfect cold application almost every time.</p>
+<blockquote>The skill that got me hired wasn’t a method. It was being able to explain why a finding mattered to someone who didn’t care about research.</blockquote>
+<h2>You will feel like a fraud. Everyone does.</h2>
+<p>The senior researchers I admire most still second-guess their study designs. Impostor feeling isn’t a signal you don’t belong — it’s a signal you’re paying attention.</p>`,
+    }),
+    // a pending submission waiting in the admin queue
+    p({
+      id: 'po_pending', authorId: 'u_sof', date: '2026-06-08', status: 'pending',
+      title: 'Ethnography on a startup budget',
+      tags: ['Qualitative', 'Ethics', 'Research Methods'],
+      excerpt: 'You don’t need a six-week field study to think like an ethnographer. Small, scrappy ways to bring context-rich observation into fast-moving teams.',
+      body: `<p>"We can’t afford ethnography" usually means "we picture a six-week field study." But the ethnographic <em>mindset</em> — watching what people do in context instead of asking what they say they do — fits into a sprint if you scope it right.</p>
+<h2>Shrink the field, not the rigor</h2>
+<p>One afternoon shadowing a single user in their real environment will teach you more than five clean lab sessions. Pick depth over coverage when budgets are tight.</p>
+<h2>Consent still comes first</h2>
+<p>Scrappy never means careless. Real-context observation raises the stakes on privacy and consent, not lowers them.</p>
+<p>Small studies, honestly done, still beat big studies done in a vacuum.</p>`,
+    }),
+  ];
+}
+
+// ============================================================
+// STORE — module-level singleton with subscribers
+// ============================================================
+function loadState() {
+  try {
+    const raw = localStorage.getItem(LS_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (parsed && parsed.members && parsed.posts) {
+        // migrate older saves that predate later collections
+        if (!parsed.signups) parsed.signups = seedSignups();
+        if (!parsed.events) parsed.events = seedEvents();
+        if (!parsed.rsvps) parsed.rsvps = seedRsvps(parsed.events);
+        if (!parsed.volunteers) parsed.volunteers = seedVolunteers();
+        if (!parsed.emails) parsed.emails = seedEmails(parsed.events, parsed.members, parsed.signups);
+        if (!parsed.comments) parsed.comments = seedComments();
+        if (!parsed.reactions) parsed.reactions = seedReactions();
+        if (!parsed.myReactions) parsed.myReactions = {};
+        if (!parsed.feedback) parsed.feedback = seedFeedback();
+        if (!parsed.analytics) parsed.analytics = seedAnalytics();
+        return parsed;
+      }
+    }
+  } catch (e) { /* ignore */ }
+  // first run — seed, and sign the owner in as admin so the review experience is full
+  const events = seedEvents();
+  const members = seedMembers();
+  const signups = seedSignups();
+  return { members, posts: seedPosts(), signups, events, rsvps: seedRsvps(events),
+    volunteers: seedVolunteers(), emails: seedEmails(events, members, signups), comments: seedComments(),
+    reactions: seedReactions(), myReactions: {}, feedback: seedFeedback(), analytics: seedAnalytics(), authUserId: 'u_admin' };
+}
+
+function seedSignups() {
+  return [
+    { id: uid(), name: 'Avery Stone', email: 'avery.stone@example.com', source: 'Mailing list', date: '2026-05-30' },
+    { id: uid(), name: 'Marcus Webb', email: 'mwebb@example.com', source: 'Mailing list', date: '2026-05-18' },
+    { id: uid(), name: 'Lena Park', email: 'lena.park@example.com', source: 'Mailing list', date: '2026-04-27' },
+    { id: uid(), name: 'Ravi Desai', email: 'ravi.d@example.com', source: 'Mailing list', date: '2026-04-11' },
+  ];
+}
+function seedEvents() {
+  return (window.EVENTS || []).map((e, i) => ({ id: 'ev_seed_' + i, ...e }));
+}
+function seedRsvps(events) {
+  const openEv = (events || []).find((e) => e.status === 'open') || (events || [])[0];
+  if (!openEv) return [];
+  return [
+    { id: uid(), eventId: openEv.id, name: 'Devon Ramirez', email: 'devon.r@example.com', guests: 1, date: '2026-06-02' },
+    { id: uid(), eventId: openEv.id, name: 'Sofia Chen', email: 'sofia.c@example.com', guests: 2, date: '2026-06-03' },
+    { id: uid(), eventId: openEv.id, name: 'Tyler Brooks', email: 'tyler.b@example.com', guests: 1, date: '2026-06-05' },
+  ];
+}
+function seedVolunteers() {
+  return [
+    { id: uid(), name: 'Jordan Mills', email: 'jordan.mills@example.com', company: 'Bumble', position: 'UX Researcher', role: 'Volunteering my time for event organization', date: '2026-05-20' },
+    { id: uid(), name: 'Priya Nadkarni', email: 'priya.n@example.com', company: 'Atlassian', position: 'Staff Researcher', role: 'Volunteering as a mentor / educator', date: '2026-04-15' },
+  ];
+}
+const MONTH_IDX = { JAN: 0, FEB: 1, MAR: 2, APR: 3, MAY: 4, JUN: 5, JUL: 6, AUG: 7, SEP: 8, OCT: 9, NOV: 10, DEC: 11 };
+function eventDate(ev) {
+  const parts = String(ev.date || '').split(' ');
+  return new Date(parseInt(ev.year || '2026', 10), MONTH_IDX[parts[0]] || 0, parseInt(parts[1] || '1', 10));
+}
+function reminderDate(ev) { const d = eventDate(ev); d.setDate(d.getDate() - 1); return d.toISOString().slice(0, 10); }
+function seedEmails(events, members, signups) {
+  const ev = (events || []).find((e) => e.status === 'open') || (events || [])[0];
+  if (!ev) return [];
+  const seen = new Set(); const rec = [];
+  [...(members || []), ...(signups || [])].forEach((p) => { const e = (p.email || '').toLowerCase(); if (e && !seen.has(e)) { seen.add(e); rec.push({ name: p.name, email: p.email }); } });
+  return [{ id: uid(), type: 'announcement', subject: 'New event: ' + ev.title, eventId: ev.id,
+    body: `You're invited! ${ev.title} happens ${ev.day} ${ev.date}, ${ev.year} at ${ev.time}, ${ev.where}.\n\n${ev.desc || ''}\n\nAdd it to your calendar and we'll see you there.`,
+    recipients: rec, count: rec.length, status: 'sent', date: '2026-05-29' }];
+}
+function seedComments() {
+  return [
+    { id: uid(), postId: 'po_ai', authorId: 'u_dev', name: 'Devon Ramirez', text: 'This nails it — the bottleneck moving to judgment is exactly what I felt this year.', date: '2026-05-29T14:12:00Z' },
+    { id: uid(), postId: 'po_ai', authorId: null, name: 'Guest researcher', text: 'Great read. The point about confident-but-wrong summaries is so real.', date: '2026-05-30T09:02:00Z' },
+    { id: uid(), postId: 'po_disc', authorId: 'u_jam', name: 'James Okafor', text: 'Rotating who runs discovery saved us too. Underrated tip.', date: '2026-05-12T17:40:00Z' },
+  ];
+}
+function seedReactions() {
+  return { po_ai: { up: 12, heart: 5, insight: 7 }, po_disc: { up: 4 }, po_survey: { heart: 3 } };
+}
+function seedFeedback() {
+  return [
+    { id: uid(), rating: 5, message: 'Love the events — met two collaborators at the last happy hour.', email: 'lena.park@example.com', page: 'Events', date: '2026-06-04T18:20:00Z' },
+    { id: uid(), rating: 4, message: 'The blog is great. Would love more quant / measurement content.', email: '', page: 'Blog', date: '2026-05-28T11:05:00Z' },
+    { id: uid(), rating: 5, message: 'Such a welcoming community for someone new to UXR.', email: 'tyler.b@example.com', page: 'Community', date: '2026-05-22T09:40:00Z' },
+  ];
+}
+function seedAnalytics() {
+  return {
+    visits: 3842, uniqueVisitors: 2114, pageviews: 11268, avgMinutes: 3.4, bounceRate: 38, returning: 42,
+    sources: [
+      { name: 'Direct', value: 1320 }, { name: 'LinkedIn', value: 1010 }, { name: 'Slack', value: 560 },
+      { name: 'Google', value: 470 }, { name: 'X / Twitter', value: 268 }, { name: 'Newsletter', value: 214 },
+    ],
+    weekly: [
+      { label: 'Apr 13', visits: 286 }, { label: 'Apr 20', visits: 342 }, { label: 'Apr 27', visits: 401 },
+      { label: 'May 4', visits: 388 }, { label: 'May 11', visits: 503 }, { label: 'May 18', visits: 612 },
+      { label: 'May 25', visits: 705 }, { label: 'Jun 1', visits: 605 },
+    ],
+    postViews: { po_ai: 1842, po_disc: 921, po_survey: 1106, po_repo: 740, po_break: 1320 },
+    devices: [ { name: 'Desktop', value: 61 }, { name: 'Mobile', value: 33 }, { name: 'Tablet', value: 6 } ],
+  };
+}
+
+const Store = {
+  state: loadState(),
+  listeners: new Set(),
+  persist() {
+    try { localStorage.setItem(LS_KEY, JSON.stringify(this.state)); } catch (e) { /* ignore */ }
+  },
+  set(updater) {
+    const next = typeof updater === 'function' ? updater(this.state) : updater;
+    this.state = { ...this.state, ...next };
+    this.persist();
+    this.listeners.forEach((l) => l());
+  },
+  subscribe(fn) { this.listeners.add(fn); return () => this.listeners.delete(fn); },
+
+  // ---- selectors ----
+  currentUser() { return this.state.members.find((m) => m.id === this.state.authUserId) || null; },
+  memberById(id) { return this.state.members.find((m) => m.id === id) || null; },
+  postById(id) { return this.state.posts.find((p) => p.id === id) || null; },
+  publishedPosts() {
+    return this.state.posts.filter((p) => p.status === 'published')
+      .sort((a, b) => (a.date < b.date ? 1 : -1));
+  },
+  pendingPosts() {
+    return this.state.posts.filter((p) => p.status === 'pending')
+      .sort((a, b) => (a.date < b.date ? 1 : -1));
+  },
+  allTags() {
+    const set = new Set(TAG_SUGGESTIONS);
+    this.state.posts.forEach((p) => (p.tags || []).forEach((t) => set.add(t)));
+    return Array.from(set);
+  },
+
+  // ---- signups / events / rsvps selectors ----
+  signups() { return (this.state.signups || []).slice().sort((a, b) => (a.date < b.date ? 1 : -1)); },
+  eventById(id) { return (this.state.events || []).find((e) => e.id === id) || null; },
+  sortedEvents() { return (this.state.events || []).slice(); },
+  rsvpsForEvent(id) { return (this.state.rsvps || []).filter((r) => r.eventId === id).sort((a, b) => (a.date < b.date ? 1 : -1)); },
+  allRsvps() { return (this.state.rsvps || []).slice().sort((a, b) => (a.date < b.date ? 1 : -1)); },
+
+  // ---- auth ----
+  signUp({ name, email }) {
+    const existing = this.state.members.find((m) => m.email.toLowerCase() === (email || '').toLowerCase());
+    if (existing) { this.set({ authUserId: existing.id }); return existing; }
+    const member = {
+      id: uid(), name: name || '', email: email || '', photo: null,
+      role: '', company: '', linkedin: '', website: '', location: '', admin: false,
+      bio: '', expertise: [], joined: new Date().toISOString().slice(0, 10), fresh: true,
+    };
+    this.set((s) => ({ members: [...s.members, member], authUserId: member.id }));
+    return member;
+  },
+  logIn(email) {
+    const m = this.state.members.find((x) => x.email.toLowerCase() === (email || '').toLowerCase());
+    if (m) { this.set({ authUserId: m.id }); return m; }
+    return null;
+  },
+  logOut() { this.set({ authUserId: null }); },
+
+  // ---- members ----
+  updateMember(id, patch) {
+    this.set((s) => ({ members: s.members.map((m) => (m.id === id ? { ...m, ...patch, fresh: false } : m)) }));
+  },
+  setMemberRole(id, role) { this.updateMember(id, { role }); },
+  setAdmin(id, admin) { this.updateMember(id, { admin }); },
+  removeMember(id) {
+    this.set((s) => ({ members: s.members.filter((m) => m.id !== id) }));
+  },
+
+  // ---- posts ----
+  submitPost({ title, excerpt, body, tags, cover, authorId }) {
+    const post = {
+      id: uid(), authorId, title, excerpt, body, tags: tags || [], cover: cover || null,
+      date: new Date().toISOString().slice(0, 10), status: 'pending', readMins: readMinutes(body),
+    };
+    this.set((s) => ({ posts: [post, ...s.posts] }));
+    return post;
+  },
+  setPostStatus(id, status) {
+    this.set((s) => ({ posts: s.posts.map((p) => (p.id === id ? { ...p, status } : p)) }));
+  },
+  deletePost(id) { this.set((s) => ({ posts: s.posts.filter((p) => p.id !== id) })); },
+
+  // ---- mailing-list signups ----
+  addSignup({ name, email, source }) {
+    const entry = { id: uid(), name: name || '', email: email || '', source: source || 'Mailing list', date: new Date().toISOString().slice(0, 10) };
+    this.set((s) => ({ signups: [entry, ...(s.signups || [])] }));
+    return entry;
+  },
+
+  // ---- events (admin-managed) ----
+  createEvent(data) {
+    const ev = { id: uid(), status: 'open', year: String(new Date().getFullYear()), ...data };
+    this.set((s) => ({ events: [ev, ...(s.events || [])] }));
+    this.announceEvent(ev);
+    return ev;
+  },
+  updateEvent(id, patch) { this.set((s) => ({ events: (s.events || []).map((e) => (e.id === id ? { ...e, ...patch } : e)) })); },
+  deleteEvent(id) { this.set((s) => ({ events: (s.events || []).filter((e) => e.id !== id), rsvps: (s.rsvps || []).filter((r) => r.eventId !== id) })); },
+
+  // ---- rsvps ----
+  addRSVP({ eventId, name, email, guests }) {
+    const r = { id: uid(), eventId, name: name || '', email: email || '', guests: guests || 1, date: new Date().toISOString().slice(0, 10) };
+    this.set((s) => ({ rsvps: [r, ...(s.rsvps || [])] }));
+    this.scheduleReminder(r, this.eventById(eventId));
+    return r;
+  },
+
+  // ---- volunteers ----
+  addVolunteer({ name, email, company, position, role }) {
+    const v = { id: uid(), name: name || '', email: email || '', company: company || '', position: position || '', role: role || '', date: new Date().toISOString().slice(0, 10) };
+    this.set((s) => ({ volunteers: [v, ...(s.volunteers || [])] }));
+    return v;
+  },
+  volunteers() { return (this.state.volunteers || []).slice().sort((a, b) => (a.date < b.date ? 1 : -1)); },
+
+  // ---- email (outbox / log) ----
+  recipientsAll() {
+    const seen = new Set(); const out = [];
+    (this.state.members || []).forEach((m) => { const e = (m.email || '').toLowerCase(); if (e && !seen.has(e)) { seen.add(e); out.push({ name: m.name, email: m.email }); } });
+    (this.state.signups || []).forEach((s) => { const e = (s.email || '').toLowerCase(); if (e && !seen.has(e)) { seen.add(e); out.push({ name: s.name, email: s.email }); } });
+    return out;
+  },
+  emails() { return (this.state.emails || []).slice(); },
+  announceEvent(ev) {
+    const recipients = this.recipientsAll();
+    const email = { id: uid(), type: 'announcement', subject: 'New event: ' + ev.title, eventId: ev.id,
+      body: `You're invited! ${ev.title} happens ${ev.day} ${ev.date}, ${ev.year} at ${ev.time}, ${ev.where}.\n\n${ev.desc || ''}\n\nAdd it to your calendar and we'll see you there.`,
+      recipients, count: recipients.length, status: 'sent', date: new Date().toISOString().slice(0, 10) };
+    this.set((s) => ({ emails: [email, ...(s.emails || [])] }));
+    return email;
+  },
+  scheduleReminder(rsvp, ev) {
+    if (!ev) return null;
+    const email = { id: uid(), type: 'reminder', subject: 'Reminder: ' + ev.title + ' is tomorrow', eventId: ev.id,
+      body: `A friendly reminder that ${ev.title} is happening ${ev.day} ${ev.date} at ${ev.time}, ${ev.where}. We saved your spot — see you there!`,
+      recipients: [{ name: rsvp.name, email: rsvp.email }], count: 1, status: 'scheduled', scheduledFor: reminderDate(ev), date: new Date().toISOString().slice(0, 10) };
+    this.set((s) => ({ emails: [email, ...(s.emails || [])] }));
+    return email;
+  },
+  sendBlast({ subject, body, audience }) {
+    let recipients;
+    if (audience === 'members') recipients = (this.state.members || []).map((m) => ({ name: m.name, email: m.email }));
+    else if (audience === 'list') recipients = (this.state.signups || []).map((s) => ({ name: s.name, email: s.email }));
+    else recipients = this.recipientsAll();
+    const email = { id: uid(), type: 'blast', subject, body, audience: audience || 'all', recipients, count: recipients.length, status: 'sent', date: new Date().toISOString().slice(0, 10) };
+    this.set((s) => ({ emails: [email, ...(s.emails || [])] }));
+    return email;
+  },
+  markEmailSent(id) { this.set((s) => ({ emails: (s.emails || []).map((e) => (e.id === id ? { ...e, status: 'sent' } : e)) })); },
+
+  // ---- reactions (visitor-friendly) ----
+  reactionsFor(postId) { return (this.state.reactions || {})[postId] || {}; },
+  myReacted(postId, type) { return !!(this.state.myReactions || {})[postId + ':' + type]; },
+  toggleReaction(postId, type) {
+    this.set((s) => {
+      const reactions = { ...(s.reactions || {}) }; const counts = { ...(reactions[postId] || {}) };
+      const mine = { ...(s.myReactions || {}) }; const key = postId + ':' + type;
+      if (mine[key]) { delete mine[key]; counts[type] = Math.max(0, (counts[type] || 0) - 1); }
+      else { mine[key] = true; counts[type] = (counts[type] || 0) + 1; }
+      reactions[postId] = counts;
+      return { reactions, myReactions: mine };
+    });
+  },
+
+  // ---- comments (visitor-friendly) ----
+  commentsForPost(postId) { return (this.state.comments || []).filter((c) => c.postId === postId).sort((a, b) => (a.date < b.date ? 1 : -1)); },
+  addComment({ postId, authorId, name, text }) {
+    const c = { id: uid(), postId, authorId: authorId || null, name: name || 'Anonymous', text: text || '', date: new Date().toISOString() };
+    this.set((s) => ({ comments: [c, ...(s.comments || [])] }));
+    return c;
+  },
+  deleteComment(id) { this.set((s) => ({ comments: (s.comments || []).filter((c) => c.id !== id) })); },
+
+  // ---- feedback (visitor-friendly) ----
+  addFeedback({ rating, message, email, page }) {
+    const f = { id: uid(), rating: rating || 0, message: message || '', email: email || '', page: page || '', date: new Date().toISOString() };
+    this.set((s) => ({ feedback: [f, ...(s.feedback || [])] }));
+    return f;
+  },
+  feedbackList() { return (this.state.feedback || []).slice().sort((a, b) => (a.date < b.date ? 1 : -1)); },
+
+  // ---- analytics / engagement ----
+  analytics() { return this.state.analytics || {}; },
+  trackPostView(postId) {
+    this.set((s) => {
+      const a = { ...(s.analytics || {}) };
+      a.postViews = { ...(a.postViews || {}) };
+      a.postViews[postId] = (a.postViews[postId] || 0) + 1;
+      a.pageviews = (a.pageviews || 0) + 1;
+      return { analytics: a };
+    });
+  },
+  postEngagement(postId) {
+    const views = (this.analytics().postViews || {})[postId] || 0;
+    const reacts = Object.values(this.reactionsFor(postId)).reduce((n, v) => n + v, 0);
+    const comments = this.commentsForPost(postId).length;
+    return { views, reacts, comments, score: views + reacts * 8 + comments * 15 };
+  },
+
+  resetAll() {
+    const events = seedEvents();
+    const members = seedMembers();
+    const signups = seedSignups();
+    this.state = { members, posts: seedPosts(), signups, events, rsvps: seedRsvps(events),
+      volunteers: seedVolunteers(), emails: seedEmails(events, members, signups), comments: seedComments(),
+      reactions: seedReactions(), myReactions: {}, feedback: seedFeedback(), analytics: seedAnalytics(), authUserId: 'u_admin' };
+    this.persist();
+    this.listeners.forEach((l) => l());
+  },
+};
+
+// React hook — re-renders subscribers on any store change
+function useStore() {
+  const [, force] = React.useReducer((n) => n + 1, 0);
+  React.useEffect(() => Store.subscribe(force), []);
+  return Store;
+}
+
+Object.assign(window, {
+  Store, useStore, TAG_SUGGESTIONS, toneForTag, toneForName, initials, readMinutes,
+});

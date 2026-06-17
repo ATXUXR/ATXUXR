@@ -1,0 +1,131 @@
+/* global React, Eyebrow, Btn, Icon, Mark, Mailing */
+// Volunteer & Donate — real forms recreated from austinuxresearchers.com.
+
+const fieldStyle = { fontFamily: 'var(--font-sans)', fontSize: 15, padding: '12px 14px', borderRadius: 'var(--radius-md)', border: '1.5px solid var(--border-strong)', background: 'var(--surface)', color: 'var(--fg)', width: '100%', boxSizing: 'border-box' };
+const labelStyle = { display: 'block', fontFamily: 'var(--font-sans)', fontWeight: 600, fontSize: 13.5, marginBottom: 6, color: 'var(--fg)' };
+
+function PageHero({ icon, eyebrow, title, sub }) {
+  return (
+    <section style={{ position: 'relative', overflow: 'hidden' }}>
+      <div style={{ position: 'absolute', top: -280, left: '50%', transform: 'translateX(-50%)', width: 900, height: 540,
+        background: 'radial-gradient(circle at 50% 50%, rgba(238,74,28,0.16), transparent 64%)', pointerEvents: 'none' }} />
+      <div style={{ maxWidth: 760, margin: '0 auto', padding: '76px 28px 8px', position: 'relative', textAlign: 'center' }}>
+        <span style={{ display: 'inline-grid', placeItems: 'center', width: 70, height: 70, borderRadius: '999px 999px 18px 18px', background: 'var(--primary)', color: '#fff', marginBottom: 22 }}>
+          <Icon name={icon} size={34} />
+        </span>
+        <Eyebrow style={{ marginBottom: 14 }}>{eyebrow}</Eyebrow>
+        <h1 style={{ fontSize: 'clamp(2rem, 1.4rem + 2vw, 3rem)', margin: 0 }}>{title}</h1>
+        <p className="lead" style={{ fontSize: 18, maxWidth: '48ch', margin: '18px auto 0' }}>{sub}</p>
+      </div>
+    </section>
+  );
+}
+
+function Card({ children }) {
+  return (
+    <div style={{ maxWidth: 560, margin: '0 auto', background: 'var(--surface)', border: '1px solid var(--border)',
+      borderRadius: 'var(--radius-xl)', boxShadow: 'var(--shadow-md)', padding: '30px 30px 32px' }}>{children}</div>
+  );
+}
+
+function Volunteer({ setView }) {
+  const [role, setRole] = React.useState('');
+  const [done, setDone] = React.useState(false);
+  const roles = ['Volunteering as a mentor / educator', 'Volunteering my time for event organization', 'Volunteering to facilitate connections & resources', 'Other'];
+  const submit = (e) => {
+    e.preventDefault();
+    const f = e.target;
+    const g = (n) => ((f.elements[n] && f.elements[n].value) || '').trim();
+    const name = (g('first') + ' ' + g('last')).trim();
+    window.Store.addVolunteer({ name, email: g('email'), company: g('company'), position: g('position'), role });
+    setDone(true); window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+  return (
+    <React.Fragment>
+      <PageHero icon="hand-heart" eyebrow="JOIN THE FUN"
+        title="Sign up to volunteer for future events" 
+        sub="We're looking for volunteers to help us grow and expand our reach. Let us know if you'd like to join the fun." />
+      <section style={{ background: 'var(--bg)' }}>
+        <div style={{ maxWidth: 1140, margin: '0 auto', padding: '36px 28px 80px' }}>
+          <Card>
+            {done ? (
+              <div style={{ textAlign: 'center', padding: '12px 4px' }}>
+                <span style={{ display: 'inline-grid', placeItems: 'center', width: 60, height: 60, borderRadius: '50%', background: 'var(--success-bg)', color: 'var(--success)', marginBottom: 16 }}><Icon name="check" size={32} /></span>
+                <h3 style={{ fontSize: 22, margin: '0 0 8px' }}>Thank you for stepping up! 🙌</h3>
+                <p style={{ fontSize: 15, color: 'var(--fg-muted)', margin: '0 0 20px' }}>We'll be in touch about how you can help. The community is better with you in it.</p>
+                <Btn variant="secondary" onClick={() => setView('events')}>Browse events</Btn>
+              </div>
+            ) : (
+              <form onSubmit={submit} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                <div><label style={labelStyle}>Email</label><input name="email" style={fieldStyle} type="email" placeholder="you@example.com" /></div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+                  <div><label style={labelStyle}>First name *</label><input name="first" style={fieldStyle} required /></div>
+                  <div><label style={labelStyle}>Last name *</label><input name="last" style={fieldStyle} required /></div>
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+                  <div><label style={labelStyle}>Company <span style={{ color: 'var(--fg-subtle)', fontWeight: 400 }}>(most recent)</span></label><input name="company" style={fieldStyle} /></div>
+                  <div><label style={labelStyle}>Position <span style={{ color: 'var(--fg-subtle)', fontWeight: 400 }}>(most recent)</span></label><input name="position" style={fieldStyle} /></div>
+                </div>
+                <div>
+                  <label style={labelStyle}>How would you like to join the fun? *</label>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 9, marginTop: 4 }}>
+                    {roles.map((r) => {
+                      const on = role === r;
+                      return (
+                        <button type="button" key={r} onClick={() => setRole(r)} style={{ cursor: 'pointer', textAlign: 'left', display: 'flex', alignItems: 'center', gap: 12,
+                          padding: '12px 14px', borderRadius: 'var(--radius-md)', border: '1.5px solid ' + (on ? 'var(--primary)' : 'var(--border-strong)'),
+                          background: on ? 'var(--orange-50)' : 'var(--surface)', transition: 'var(--transition)' }}>
+                          <span style={{ width: 18, height: 18, borderRadius: '50%', flex: 'none', border: '2px solid ' + (on ? 'var(--primary)' : 'var(--border-strong)'), display: 'grid', placeItems: 'center' }}>
+                            {on && <span style={{ width: 9, height: 9, borderRadius: '50%', background: 'var(--primary)' }} />}
+                          </span>
+                          <span style={{ fontSize: 14.5, fontWeight: on ? 600 : 400, color: 'var(--fg)' }}>{r}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+                <Btn variant="primary" size="lg" type="submit" icon="send" style={{ width: '100%', justifyContent: 'center', marginTop: 4 }}>Submit</Btn>
+              </form>
+            )}
+          </Card>
+        </div>
+      </section>
+      <Mailing />
+    </React.Fragment>
+  );
+}
+
+function Donate({ setView }) {
+  return (
+    <React.Fragment>
+      <PageHero icon="heart-handshake" eyebrow="SUPPORT OUR COMMUNITY"
+        title="Leave a one-time donation"
+        sub="We keep our events free and accessible. Your gift covers venues, food, accessibility, and the tools that bring Austin's researchers together." />
+      <section style={{ background: 'var(--bg)' }}>
+        <div style={{ maxWidth: 1140, margin: '0 auto', padding: '36px 28px 80px' }}>
+          <Card>
+            <div style={{ textAlign: 'center', padding: '10px 4px' }}>
+              <span style={{ display: 'inline-grid', placeItems: 'center', width: 64, height: 64, borderRadius: '999px 999px 18px 18px', background: 'var(--orange-50)', color: 'var(--primary)', marginBottom: 18 }}><Icon name="heart" size={30} /></span>
+              <h3 style={{ fontSize: 23, margin: '0 0 10px' }}>Chip in via Venmo</h3>
+              <p style={{ fontSize: 15.5, color: 'var(--fg-muted)', lineHeight: 1.6, margin: '0 0 24px', maxWidth: '40ch', marginLeft: 'auto', marginRight: 'auto' }}>
+                Every dollar goes straight back into the community — venues, food, and keeping our events free for everyone. Send a one-time gift in seconds.
+              </p>
+              <a href="https://www.venmo.com/u/MaralElliott" target="_blank" rel="noreferrer" style={{ textDecoration: 'none', display: 'block' }}>
+                <Btn variant="ink" size="lg" icon="external-link" style={{ width: '100%', justifyContent: 'center' }}>Donate on Venmo</Btn>
+              </a>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7, marginTop: 14, fontSize: 13, color: 'var(--fg-subtle)' }}>
+                <Icon name="shield-check" size={15} /> Secure transfer handled by Venmo
+              </div>
+            </div>
+          </Card>
+        </div>
+      </section>
+      <Mailing />
+    </React.Fragment>
+  );
+}
+
+function Simple({ kind, setView }) {
+  return kind === 'donate' ? <Donate setView={setView} /> : <Volunteer setView={setView} />;
+}
+window.Simple = Simple;

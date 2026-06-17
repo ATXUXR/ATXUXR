@@ -1,0 +1,194 @@
+/* global React, Store, useStore, Btn, Icon, Field, Input, Textarea, TagPicker, TAG_SUGGESTIONS, PROSE_CSS, PostCover, Avatar */
+// ATX UXR — Contribute a post: rich editor + metadata, submit for review.
+
+function ToolbarBtn({ icon, label, onClick, active }) {
+  return (
+    <button type="button" title={label} aria-label={label}
+      onMouseDown={(e) => { e.preventDefault(); onClick(); }}
+      style={{ display: 'inline-grid', placeItems: 'center', minWidth: 34, height: 34, padding: '0 8px', borderRadius: 'var(--radius-sm)', cursor: 'pointer',
+        border: 'none', background: active ? 'var(--orange-50)' : 'transparent', color: active ? 'var(--orange-700)' : 'var(--fg-muted)',
+        fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 14 }}>
+      {icon ? <Icon name={icon} size={17} /> : label}
+    </button>
+  );
+}
+
+function RichEditor({ valueRef, onChange, placeholder }) {
+  const ref = React.useRef(null);
+  const [empty, setEmpty] = React.useState(true);
+  React.useEffect(() => {
+    if (ref.current && valueRef.current && !ref.current.innerHTML) {
+      ref.current.innerHTML = valueRef.current;
+      setEmpty(false);
+    }
+  }, []);
+  const exec = (cmd, val) => { document.execCommand(cmd, false, val); sync(); ref.current && ref.current.focus(); };
+  const block = (tag) => { document.execCommand('formatBlock', false, tag); sync(); ref.current && ref.current.focus(); };
+  const link = () => { const url = window.prompt('Link URL'); if (url) exec('createLink', url); };
+  const sync = () => {
+    if (!ref.current) return;
+    const html = ref.current.innerHTML;
+    valueRef.current = html;
+    setEmpty(!ref.current.textContent.trim());
+    onChange && onChange(html);
+  };
+  return (
+    <div style={{ border: '1.5px solid var(--border-strong)', borderRadius: 'var(--radius-md)', overflow: 'hidden', background: 'var(--surface)' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 2, padding: '6px 8px', borderBottom: '1px solid var(--border)', background: 'var(--bg)', flexWrap: 'wrap' }}>
+        <ToolbarBtn label="H2" onClick={() => block('h2')} />
+        <ToolbarBtn label="H3" onClick={() => block('h3')} />
+        <span style={{ width: 1, height: 20, background: 'var(--border)', margin: '0 4px' }} />
+        <ToolbarBtn icon="bold" label="Bold" onClick={() => exec('bold')} />
+        <ToolbarBtn icon="italic" label="Italic" onClick={() => exec('italic')} />
+        <span style={{ width: 1, height: 20, background: 'var(--border)', margin: '0 4px' }} />
+        <ToolbarBtn icon="list" label="Bulleted list" onClick={() => exec('insertUnorderedList')} />
+        <ToolbarBtn icon="list-ordered" label="Numbered list" onClick={() => exec('insertOrderedList')} />
+        <ToolbarBtn icon="quote" label="Quote" onClick={() => block('blockquote')} />
+        <ToolbarBtn icon="link" label="Link" onClick={link} />
+        <span style={{ width: 1, height: 20, background: 'var(--border)', margin: '0 4px' }} />
+        <ToolbarBtn label="Normal" onClick={() => block('p')} />
+      </div>
+      <div style={{ position: 'relative' }}>
+        <div ref={ref} contentEditable suppressContentEditableWarning className="atx-prose"
+          onInput={sync} onBlur={sync}
+          style={{ minHeight: 280, padding: '22px 24px', outline: 'none', fontSize: 17 }} />
+        {empty && <div style={{ position: 'absolute', top: 22, left: 24, color: 'var(--fg-subtle)', pointerEvents: 'none', fontSize: 17 }}>{placeholder}</div>}
+      </div>
+    </div>
+  );
+}
+
+function Contribute({ setView, openProfile, requireAuth }) {
+  useStore();
+  const user = Store.currentUser();
+  const [title, setTitle] = React.useState('');
+  const [excerpt, setExcerpt] = React.useState('');
+  const [tags, setTags] = React.useState([]);
+  const [cover, setCover] = React.useState(null);
+  const [, setBodyTick] = React.useState(0);
+  const bodyRef = React.useRef('');
+  const [done, setDone] = React.useState(false);
+  const [err, setErr] = React.useState('');
+
+  React.useEffect(() => { window.scrollTo({ top: 0 }); }, []);
+
+  if (!user) {
+    return (
+      <section style={{ background: 'var(--bg)', minHeight: '60vh', display: 'grid', placeItems: 'center', padding: 40 }}>
+        <div style={{ textAlign: 'center', maxWidth: 420 }}>
+          <span style={{ display: 'inline-grid', placeItems: 'center', width: 64, height: 64, borderRadius: '999px 999px 16px 16px', background: 'var(--orange-50)', color: 'var(--primary)', marginBottom: 18 }}><Icon name="lock" size={30} /></span>
+          <h2 style={{ fontSize: 26, margin: '0 0 10px' }}>Sign in to contribute</h2>
+          <p style={{ fontSize: 16, color: 'var(--fg-muted)', margin: '0 0 22px' }}>You need a community account to write and submit a post.</p>
+          <Btn variant="primary" size="lg" onClick={() => requireAuth(() => {})}>Sign in / Join</Btn>
+        </div>
+      </section>
+    );
+  }
+
+  const onCover = (e) => {
+    const file = e.target.files && e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => setCover(reader.result);
+    reader.readAsDataURL(file);
+  };
+
+  const wordCount = bodyRef.current.replace(/<[^>]+>/g, ' ').trim().split(/\s+/).filter(Boolean).length;
+
+  const submit = () => {
+    setErr('');
+    if (!title.trim()) { setErr('Give your post a title.'); window.scrollTo({ top: 0, behavior: 'smooth' }); return; }
+    if (wordCount < 20) { setErr('Write a bit more before submitting (at least ~20 words).'); return; }
+    if (!excerpt.trim()) { setErr('Add a short summary so it reads well in the feed.'); return; }
+    Store.submitPost({ title: title.trim(), excerpt: excerpt.trim(), body: bodyRef.current, tags, cover, authorId: user.id });
+    setDone(true);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  if (done) {
+    return (
+      <section style={{ background: 'var(--bg)', minHeight: '60vh', display: 'grid', placeItems: 'center', padding: 40 }}>
+        <div style={{ textAlign: 'center', maxWidth: 480 }}>
+          <span style={{ display: 'inline-grid', placeItems: 'center', width: 72, height: 72, borderRadius: '50%', background: 'var(--success-bg)', color: 'var(--success)', marginBottom: 20 }}><Icon name="check" size={36} /></span>
+          <h2 style={{ fontSize: 30, margin: '0 0 12px' }}>Submitted for review! 🎉</h2>
+          <p style={{ fontSize: 16.5, color: 'var(--fg-muted)', margin: '0 0 26px', lineHeight: 1.6 }}>
+            Thanks for contributing, {user.name.split(' ')[0]}. An organizer will review <strong style={{ color: 'var(--fg)' }}>“{title}”</strong> and publish it to the blog. You’ll see it in the feed once it’s approved.
+          </p>
+          <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap' }}>
+            <Btn variant="secondary" onClick={() => setView('blog')}>Back to blog</Btn>
+            <Btn variant="primary" icon="pen-line" onClick={() => { setTitle(''); setExcerpt(''); setTags([]); setCover(null); bodyRef.current = ''; setDone(false); }}>Write another</Btn>
+          </div>
+        </div>
+      </section>
+    );
+  }
+
+  return (
+    <React.Fragment>
+      <style>{PROSE_CSS}</style>
+      <section style={{ background: 'var(--bg)' }}>
+        <div style={{ maxWidth: 760, margin: '0 auto', padding: '44px 28px 80px' }}>
+          <button type="button" onClick={() => setView('blog')} style={{ display: 'inline-flex', alignItems: 'center', gap: 7, cursor: 'pointer', background: 'none', border: 'none', fontWeight: 600, fontSize: 14, color: 'var(--fg-muted)', padding: 0, marginBottom: 22 }}>
+            <Icon name="arrow-left" size={16} /> Back to blog
+          </button>
+
+          <div style={{ marginBottom: 30 }}>
+            <div style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, fontSize: 13, letterSpacing: '0.16em', textTransform: 'uppercase', color: 'var(--primary)', marginBottom: 12 }}>CONTRIBUTE</div>
+            <h1 style={{ fontSize: 'clamp(2rem, 1.5rem + 1.6vw, 2.7rem)', margin: '0 0 10px' }}>Write a post</h1>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, color: 'var(--fg-muted)', fontSize: 14.5 }}>
+              <Avatar member={user} size={28} /> Posting as <strong style={{ color: 'var(--fg)' }}>{user.name}</strong>
+            </div>
+          </div>
+
+          {err && <div style={{ display: 'flex', alignItems: 'center', gap: 9, fontSize: 14, color: 'var(--danger)', background: 'var(--danger-bg)', padding: '12px 16px', borderRadius: 'var(--radius-md)', marginBottom: 22 }}><Icon name="alert-circle" size={18} />{err}</div>}
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 22 }}>
+            {/* COVER */}
+            <Field label="Cover image" optional hint="A cover makes your post stand out in the feed. Leave blank for a branded cover.">
+              {cover ? (
+                <div style={{ position: 'relative', borderRadius: 'var(--radius-lg)', overflow: 'hidden' }}>
+                  <div style={{ height: 200, backgroundImage: `url(${cover})`, backgroundSize: 'cover', backgroundPosition: 'center' }} />
+                  <button type="button" onClick={() => setCover(null)} style={{ position: 'absolute', top: 12, right: 12, display: 'inline-flex', alignItems: 'center', gap: 6, padding: '7px 12px', borderRadius: 'var(--radius-pill)', border: 'none', cursor: 'pointer', background: 'rgba(33,30,34,0.78)', color: '#fff', fontSize: 13, fontWeight: 600 }}><Icon name="trash-2" size={14} /> Remove</button>
+                </div>
+              ) : (
+                <label style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 8, height: 150, borderRadius: 'var(--radius-lg)', border: '2px dashed var(--border-strong)', background: 'var(--surface)', cursor: 'pointer', color: 'var(--fg-muted)' }}>
+                  <Icon name="image-plus" size={26} />
+                  <span style={{ fontSize: 14.5, fontWeight: 600 }}>Click to upload a cover</span>
+                  <span style={{ fontSize: 12.5, color: 'var(--fg-subtle)' }}>PNG or JPG</span>
+                  <input type="file" accept="image/*" onChange={onCover} style={{ display: 'none' }} />
+                </label>
+              )}
+            </Field>
+
+            <Field label="Title">
+              <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="A clear, specific headline"
+                style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 26, letterSpacing: '-0.02em', padding: '12px 16px', borderRadius: 'var(--radius-md)', border: '1.5px solid var(--border-strong)', background: 'var(--surface)', color: 'var(--fg)', width: '100%', boxSizing: 'border-box' }} />
+            </Field>
+
+            <Field label="Summary" hint="One or two sentences shown on the blog card and at the top of your article.">
+              <Textarea value={excerpt} onChange={setExcerpt} rows={2} placeholder="What’s the takeaway? Hook the reader in a sentence or two." />
+            </Field>
+
+            <Field label="Tags" hint="Pick from suggested UXR topics or add your own.">
+              <TagPicker value={tags} onChange={setTags} suggestions={TAG_SUGGESTIONS} />
+            </Field>
+
+            <Field label="Body">
+              <RichEditor valueRef={bodyRef} onChange={() => setBodyTick((t) => t + 1)} placeholder="Tell your story… use the toolbar for headings, lists, and quotes." />
+              <div style={{ fontSize: 12.5, color: 'var(--fg-subtle)', marginTop: 6, textAlign: 'right' }}>{wordCount} words · ~{Math.max(1, Math.round(wordCount / 200))} min read</div>
+            </Field>
+
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 14, flexWrap: 'wrap', paddingTop: 8, borderTop: '1px solid var(--border)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13.5, color: 'var(--fg-muted)' }}>
+                <Icon name="shield-check" size={17} style={{ color: 'var(--teal-500)' }} /> Posts are reviewed by an organizer before publishing.
+              </div>
+              <Btn variant="primary" size="lg" icon="send" onClick={submit}>Submit for review</Btn>
+            </div>
+          </div>
+        </div>
+      </section>
+    </React.Fragment>
+  );
+}
+
+Object.assign(window, { Contribute, RichEditor });

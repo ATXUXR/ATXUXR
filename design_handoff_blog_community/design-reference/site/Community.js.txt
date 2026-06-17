@@ -1,0 +1,117 @@
+/* global React, Store, useStore, Avatar, Tag, Btn, Icon, Eyebrow, toneForTag */
+// ATX UXR — Community: member directory grid with search + expertise filter.
+
+function MemberCard({ member, onOpen }) {
+  const [h, setH] = React.useState(false);
+  return (
+    <article onClick={() => onOpen(member.id)} onMouseEnter={() => setH(true)} onMouseLeave={() => setH(false)}
+      style={{ cursor: 'pointer', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)',
+        padding: '26px 24px', boxShadow: h ? 'var(--shadow-md)' : 'var(--shadow-sm)', transform: h ? 'translateY(-3px)' : 'none', transition: 'var(--transition)',
+        display: 'flex', flexDirection: 'column' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 16 }}>
+        <Avatar member={member} size={56} />
+        <div style={{ minWidth: 0, flex: 1 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+            <h3 style={{ fontSize: 18, margin: 0, lineHeight: 1.2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{member.name}</h3>
+            {member.admin && <Tag tone="ink" style={{ fontSize: 9 }}>Organizer</Tag>}
+          </div>
+          <div style={{ fontSize: 13.5, color: 'var(--fg-muted)', marginTop: 3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{member.role}</div>
+        </div>
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 7, marginBottom: 16, fontSize: 13.5, color: 'var(--fg-muted)' }}>
+        {member.company && <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}><Icon name="building-2" size={14} style={{ color: 'var(--fg-subtle)' }} />{member.company}</span>}
+        {member.location && <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}><Icon name="map-pin" size={14} style={{ color: 'var(--fg-subtle)' }} />{member.location}</span>}
+      </div>
+      {member.expertise && member.expertise.length > 0 && (
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 'auto' }}>
+          {member.expertise.slice(0, 3).map((t) => <Tag key={t} tone={toneForTag(t)} style={{ fontSize: 9.5 }}>{t}</Tag>)}
+        </div>
+      )}
+    </article>
+  );
+}
+
+function Community({ openProfile, setView, requireAuth }) {
+  useStore();
+  const [q, setQ] = React.useState('');
+  const [filter, setFilter] = React.useState('');
+  const members = Store.state.members;
+
+  // expertise universe for filter chips
+  const expertiseSet = new Set();
+  members.forEach((m) => (m.expertise || []).forEach((t) => expertiseSet.add(t)));
+  const expertise = Array.from(expertiseSet).sort();
+
+  const filtered = members.filter((m) => {
+    const hay = (m.name + ' ' + m.role + ' ' + m.company + ' ' + (m.expertise || []).join(' ') + ' ' + m.location).toLowerCase();
+    const matchQ = !q.trim() || hay.includes(q.trim().toLowerCase());
+    const matchF = !filter || (m.expertise || []).includes(filter) || m.role === filter;
+    return matchQ && matchF;
+  });
+
+  const join = () => requireAuth(() => setView('community'));
+  const me = Store.currentUser();
+
+  return (
+    <React.Fragment>
+      {/* HERO */}
+      <section style={{ position: 'relative', overflow: 'hidden', borderBottom: '1px solid var(--border)' }}>
+        <div style={{ position: 'absolute', top: -300, left: '50%', transform: 'translateX(-50%)', width: 1000, height: 600,
+          background: 'radial-gradient(circle at 50% 50%, rgba(15,126,108,0.12), transparent 64%)', pointerEvents: 'none' }} />
+        <div style={{ maxWidth: 1140, margin: '0 auto', padding: '64px 28px 32px', position: 'relative' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', flexWrap: 'wrap', gap: 24 }}>
+            <div style={{ maxWidth: '36ch' }}>
+              <Eyebrow style={{ marginBottom: 14 }}>THE PEOPLE-PEOPLE</Eyebrow>
+              <h1 style={{ fontSize: 'clamp(2.3rem, 1.6rem + 2.4vw, 3.4rem)', lineHeight: 1.02, margin: '0 0 14px' }}>Meet the community</h1>
+              <p className="lead" style={{ fontSize: 18, margin: 0 }}>{members.length} Austin researchers connecting, learning, and reflecting together. Find a peer, a mentor, or a collaborator.</p>
+            </div>
+            {!me && <Btn variant="primary" size="lg" icon="user-plus" onClick={join}>Join the community</Btn>}
+            {me && <Btn variant="secondary" size="lg" icon="user" onClick={() => openProfile(me.id)}>View my profile</Btn>}
+          </div>
+        </div>
+      </section>
+
+      {/* TOOLBAR */}
+      <section style={{ background: 'var(--surface)', borderBottom: '1px solid var(--border)', position: 'sticky', top: 73, zIndex: 20 }}>
+        <div style={{ maxWidth: 1140, margin: '0 auto', padding: '18px 28px', display: 'flex', alignItems: 'center', gap: 18, flexWrap: 'wrap' }}>
+          <div style={{ position: 'relative', flex: '1 1 240px', maxWidth: 340 }}>
+            <span style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: 'var(--fg-subtle)', display: 'inline-flex' }}><Icon name="search" size={18} /></span>
+            <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search by name, company, expertise…"
+              style={{ fontFamily: 'var(--font-sans)', fontSize: 14.5, padding: '11px 14px 11px 42px', borderRadius: 'var(--radius-pill)', border: '1.5px solid var(--border-strong)', background: 'var(--bg)', color: 'var(--fg)', width: '100%', boxSizing: 'border-box' }} />
+          </div>
+          <div style={{ flex: '1 1 auto', overflowX: 'auto', display: 'flex', gap: 7 }}>
+            {expertise.slice(0, 10).map((t) => {
+              const on = filter === t;
+              return (
+                <button type="button" key={t} onClick={() => setFilter(on ? '' : t)}
+                  style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, fontSize: 10.5, letterSpacing: '0.08em', textTransform: 'uppercase', cursor: 'pointer', whiteSpace: 'nowrap',
+                    padding: '5px 11px', borderRadius: 'var(--radius-pill)', transition: 'var(--transition)',
+                    border: '1.5px solid ' + (on ? 'var(--teal-500)' : 'var(--border-strong)'), background: on ? 'var(--teal-500)' : 'var(--surface)', color: on ? '#fff' : 'var(--fg-muted)' }}>{t}</button>
+              );
+            })}
+          </div>
+          {(filter || q) && <button type="button" onClick={() => { setFilter(''); setQ(''); }} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, cursor: 'pointer', fontSize: 13, fontWeight: 600, color: 'var(--fg-muted)', background: 'none', border: 'none' }}><Icon name="x" size={15} /> Clear</button>}
+        </div>
+      </section>
+
+      {/* GRID */}
+      <section style={{ background: 'var(--bg)', minHeight: '40vh' }}>
+        <div style={{ maxWidth: 1140, margin: '0 auto', padding: '40px 28px 80px' }}>
+          {filtered.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: '70px 20px', color: 'var(--fg-muted)' }}>
+              <Icon name="users" size={40} style={{ color: 'var(--fg-subtle)' }} />
+              <h3 style={{ fontSize: 22, margin: '14px 0 6px', color: 'var(--fg)' }}>No members match</h3>
+              <p style={{ margin: 0 }}>Try a different search or clear the filter.</p>
+            </div>
+          ) : (
+            <div className="community-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 22 }}>
+              {filtered.map((m) => <MemberCard key={m.id} member={m} onOpen={openProfile} />)}
+            </div>
+          )}
+        </div>
+      </section>
+    </React.Fragment>
+  );
+}
+
+Object.assign(window, { Community, MemberCard });
