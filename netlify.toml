@@ -1,6 +1,6 @@
 # Build settings for Netlify.
-# The Netlify Next.js runtime is auto-detected from package.json; no extra
-# plugin or redirect config is required for a standard App Router build.
+# The Netlify Next.js runtime auto-detects the framework from package.json
+# and handles the publish directory + serverless function routing — don't
+# set `publish` manually or it'll serve `.next` as raw static files.
 [build]
   command = "npm run build"
-  publish = ".next"
