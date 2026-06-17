@@ -17,6 +17,11 @@ export interface SignupRow {
   name: string;
   email: string;
   source: string;
+  tags: string[];
+  first_name: string | null;
+  last_name: string | null;
+  company: string | null;
+  position: string | null;
   created_at: string;
 }
 

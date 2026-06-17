@@ -145,7 +145,9 @@ export function AdminShell({ bundle, tab, meId }: Props) {
             <VolunteersTab volunteers={bundle.volunteers} />
           )}
           {tab === "feedback" && <FeedbackTab feedback={bundle.feedback} />}
-          {tab === "email" && <EmailTab emails={bundle.emails} />}
+          {tab === "email" && (
+            <EmailTab emails={bundle.emails} signups={bundle.signups} />
+          )}
           {tab === "analytics" && (
             <AnalyticsTab
               memberCount={bundle.members.length}

@@ -1,18 +1,19 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState, useTransition, type FormEvent } from "react";
+import { useMemo, useState, useTransition, type FormEvent } from "react";
 import { Btn } from "@/components/ui/Button";
 import { Icon } from "@/components/ui/Icon";
 import { Tag } from "@/components/ui/Tag";
 import { formatDate } from "@/lib/utils";
-import type { EmailRow } from "@/lib/admin";
+import type { EmailRow, SignupRow } from "@/lib/admin";
 
 interface Props {
   emails: EmailRow[];
+  signups?: SignupRow[];
 }
 
-type Audience = "all" | "members" | "list";
+type Audience = "all" | "members" | "list" | "tags";
 
 const fieldStyle: React.CSSProperties = {
   fontFamily: "var(--font-sans)",
@@ -26,19 +27,50 @@ const fieldStyle: React.CSSProperties = {
   boxSizing: "border-box",
 };
 
-export function EmailTab({ emails }: Props) {
+export function EmailTab({ emails, signups = [] }: Props) {
   const router = useRouter();
   const [, startTransition] = useTransition();
   const [subject, setSubject] = useState("");
   const [body, setBody] = useState("");
   const [audience, setAudience] = useState<Audience>("all");
+  const [selectedTags, setSelectedTags] = useState<Set<string>>(new Set());
   const [msg, setMsg] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
+  const tagOptions = useMemo(() => {
+    const counts = new Map<string, number>();
+    signups.forEach((s) =>
+      (s.tags || []).forEach((t) =>
+        counts.set(t, (counts.get(t) || 0) + 1),
+      ),
+    );
+    return Array.from(counts.entries()).sort((a, b) => b[1] - a[1]);
+  }, [signups]);
+
+  // Estimate how many people will be hit by the current tag selection.
+  const tagEstimate = useMemo(() => {
+    if (audience !== "tags" || selectedTags.size === 0) return 0;
+    return signups.filter((s) =>
+      (s.tags || []).some((t) => selectedTags.has(t)),
+    ).length;
+  }, [signups, audience, selectedTags]);
+
+  const toggleTag = (t: string) =>
+    setSelectedTags((prev) => {
+      const next = new Set(prev);
+      if (next.has(t)) next.delete(t);
+      else next.add(t);
+      return next;
+    });
+
   const send = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!subject.trim() || !body.trim()) return;
+    if (audience === "tags" && selectedTags.size === 0) {
+      setErr("Pick at least one tag");
+      return;
+    }
     setErr(null);
     setMsg(null);
     setSubmitting(true);
@@ -46,7 +78,12 @@ export function EmailTab({ emails }: Props) {
       const res = await fetch("/api/admin/emails", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ subject, body, audience }),
+        body: JSON.stringify({
+          subject,
+          body,
+          audience,
+          tags: audience === "tags" ? Array.from(selectedTags) : undefined,
+        }),
       });
       if (!res.ok) {
         const data = await res.json().catch(() => null);
@@ -121,6 +158,7 @@ export function EmailTab({ emails }: Props) {
                   ["all", "Everyone"],
                   ["members", "Members"],
                   ["list", "Mailing list"],
+                  ["tags", "By tag"],
                 ] as const
               ).map(([k, l]) => {
                 const on = audience === k;
@@ -147,6 +185,74 @@ export function EmailTab({ emails }: Props) {
                 );
               })}
             </div>
+            {audience === "tags" && (
+              <div
+                style={{
+                  marginTop: 10,
+                  padding: "10px 12px",
+                  background: "var(--surface-sunk)",
+                  border: "1px dashed var(--border-strong)",
+                  borderRadius: "var(--radius-md)",
+                }}
+              >
+                <div
+                  style={{
+                    fontSize: 11.5,
+                    color: "var(--fg-muted)",
+                    marginBottom: 8,
+                  }}
+                >
+                  Pick one or more tags — anyone with{" "}
+                  <em>any</em> selected tag receives the blast.
+                  {selectedTags.size > 0 && (
+                    <strong style={{ color: "var(--fg)", marginLeft: 6 }}>
+                      ~{tagEstimate} {tagEstimate === 1 ? "person" : "people"}
+                    </strong>
+                  )}
+                </div>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                  {tagOptions.length === 0 && (
+                    <span
+                      style={{
+                        fontSize: 12,
+                        color: "var(--fg-subtle)",
+                      }}
+                    >
+                      No tags on any signups yet.
+                    </span>
+                  )}
+                  {tagOptions.map(([t, n]) => {
+                    const on = selectedTags.has(t);
+                    return (
+                      <button
+                        key={t}
+                        type="button"
+                        onClick={() => toggleTag(t)}
+                        style={{
+                          cursor: "pointer",
+                          fontFamily: "var(--font-mono)",
+                          fontSize: 10.5,
+                          letterSpacing: "0.06em",
+                          textTransform: "uppercase",
+                          fontWeight: 700,
+                          padding: "4px 9px",
+                          borderRadius: "var(--radius-pill)",
+                          border:
+                            "1.5px solid " +
+                            (on ? "var(--primary)" : "var(--border-strong)"),
+                          background: on
+                            ? "var(--primary)"
+                            : "var(--surface)",
+                          color: on ? "#fff" : "var(--fg-muted)",
+                        }}
+                      >
+                        {t} <span style={{ opacity: 0.7 }}>{n}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
           </div>
           <input
             style={fieldStyle}

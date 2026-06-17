@@ -5,7 +5,8 @@ import { createClient } from "@/lib/supabase/server";
 const Input = z.object({
   subject: z.string().min(1).max(200),
   body: z.string().min(1).max(10_000),
-  audience: z.enum(["all", "members", "list"]),
+  audience: z.enum(["all", "members", "list", "tags"]),
+  tags: z.array(z.string().min(1)).optional(),
 });
 
 export async function POST(req: NextRequest) {
@@ -40,19 +41,35 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Invalid input" }, { status: 400 });
   }
 
-  // Resolve the recipient list — written into the audience tag of the row.
+  const { audience, tags } = parsed.data;
+
+  // Resolve the recipient list.
   let recipientCount = 0;
-  const audienceLabel = parsed.data.audience;
-  if (audienceLabel === "members") {
+  let audienceLabel = audience as string;
+  if (audience === "members") {
     const { count } = await supabase
       .from("members")
       .select("id", { count: "exact", head: true });
     recipientCount = count ?? 0;
-  } else if (audienceLabel === "list") {
+  } else if (audience === "list") {
     const { count } = await supabase
       .from("signups")
       .select("id", { count: "exact", head: true });
     recipientCount = count ?? 0;
+  } else if (audience === "tags") {
+    if (!tags || tags.length === 0) {
+      return NextResponse.json(
+        { error: "Pick at least one tag" },
+        { status: 400 },
+      );
+    }
+    // Anyone with ANY of the selected tags (logical OR).
+    const { count } = await supabase
+      .from("signups")
+      .select("id", { count: "exact", head: true })
+      .overlaps("tags", tags);
+    recipientCount = count ?? 0;
+    audienceLabel = `tags:[${tags.join(", ")}]`;
   } else {
     const [members, signups] = await Promise.all([
       supabase.from("members").select("id", { count: "exact", head: true }),
