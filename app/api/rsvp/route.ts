@@ -52,6 +52,58 @@ function buildCalendarEvent(e: DbEvent): CalendarEvent & {
   };
 }
 
+/** Convert a legacy hardcoded event into the DbEvent shape so the rest of the
+ * route (calendar build, email send) can treat both cases uniformly. The
+ * timestamps are synthesized in America/Chicago since legacy data is naive. */
+function legacyToDbShape(
+  e: NonNullable<ReturnType<typeof getLegacyEvent>>,
+): DbEvent {
+  const months: Record<string, number> = {
+    JAN: 0, FEB: 1, MAR: 2, APR: 3, MAY: 4, JUN: 5,
+    JUL: 6, AUG: 7, SEP: 8, OCT: 9, NOV: 10, DEC: 11,
+  };
+  const [mon, dayStr] = (e.date || "").split(" ");
+  const m = months[mon?.toUpperCase()] ?? 0;
+  const day = parseInt(dayStr || "1", 10);
+  const year = parseInt(e.year, 10) || new Date().getFullYear();
+  const parseTime = (t: string): { h: number; min: number } => {
+    const match = t.match(/(\d+):(\d+)\s*(AM|PM)?/i);
+    if (!match) return { h: 18, min: 0 };
+    let h = parseInt(match[1], 10);
+    const min = parseInt(match[2], 10);
+    const mer = (match[3] || "PM").toUpperCase();
+    if (mer === "PM" && h !== 12) h += 12;
+    if (mer === "AM" && h === 12) h = 0;
+    return { h, min };
+  };
+  const parts = (e.time || "").split(/[–-]/).map((s) => s.trim());
+  const s = parseTime(parts[0] || "6:00 PM");
+  const ends = parts[1]
+    ? parseTime(parts[1])
+    : { h: s.h + 2, min: s.min };
+  // Naive local time -> ISO assuming Central (-05 CDT). Good enough; the
+  // calendar UI will re-render in the viewer's tz.
+  const startsAt = new Date(
+    Date.UTC(year, m, day, s.h + 5, s.min),
+  ).toISOString();
+  const endsAt = new Date(
+    Date.UTC(year, m, day, ends.h + 5, ends.min),
+  ).toISOString();
+  return {
+    id: e.id,
+    slug: e.id,
+    kind: e.kind,
+    title: e.title,
+    description: e.desc,
+    where_: e.where,
+    starts_at: startsAt,
+    ends_at: endsAt,
+    status: e.status,
+    address: e.where,
+    online_url: null,
+  };
+}
+
 // Look up event by id (uuid) or slug (legacy hardcoded id). Falls back to the
 // hardcoded `lib/events.ts` data so existing seeded events still RSVP.
 async function fetchEvent(
@@ -100,34 +152,40 @@ export async function POST(request: Request) {
   const supabase = createServiceClient();
   const { db, legacy } = await fetchEvent(eventId);
 
-  // The DB row is what we save the RSVP against. If the event lives only in
-  // `lib/events.ts`, fall through with a null event_id (allowed by schema?
-  // event_id is NOT NULL — so we must short-circuit and only persist if we
-  // have a DB row).
-  if (!db) {
-    if (!legacy) {
-      return NextResponse.json({ error: "Event not found" }, { status: 404 });
-    }
-    // Legacy seeded event — no DB row exists. We log the RSVP intent so it's
-    // not lost, but skip the rsvps insert (event_id is required).
-    console.log("[rsvp] legacy event, not persisting:", parsed.data);
-    return NextResponse.json({ ok: true });
+  if (!db && !legacy) {
+    return NextResponse.json({ error: "Event not found" }, { status: 404 });
   }
 
-  // Insert the RSVP.
-  const { error: rsvpErr } = await supabase.from("rsvps").insert({
-    event_id: db.id,
-    name,
-    email,
-    guests,
-  });
-  if (rsvpErr) {
-    return NextResponse.json({ error: rsvpErr.message }, { status: 400 });
+  // For legacy seeded events (no DB row yet) we still send the confirmation
+  // email and mark them on the mailing list; we just skip the rsvps insert
+  // because event_id is NOT NULL and we have no UUID to put there.
+  const effective: DbEvent | null = db
+    ? db
+    : legacy
+      ? legacyToDbShape(legacy)
+      : null;
+  if (!effective) {
+    return NextResponse.json({ error: "Event not found" }, { status: 404 });
+  }
+
+  // Insert the RSVP — only when we have a real DB row (event_id is NOT NULL).
+  if (db) {
+    const { error: rsvpErr } = await supabase.from("rsvps").insert({
+      event_id: db.id,
+      name,
+      email,
+      guests,
+    });
+    if (rsvpErr) {
+      return NextResponse.json({ error: rsvpErr.message }, { status: 400 });
+    }
+  } else {
+    console.log("[rsvp] legacy event, not persisting RSVP row:", parsed.data);
   }
 
   // Upsert into signups so the RSVPer is on the mailing list. Add an `rsvp`
   // tag plus a per-event tag for future targeting.
-  const slugForTag = db.slug || db.id;
+  const slugForTag = effective.slug || effective.id;
   const tagBase = `rsvp-${slugForTag}`;
   const token = crypto.randomBytes(18).toString("hex");
   // First find an existing row to merge tags into.
@@ -181,9 +239,9 @@ export async function POST(request: Request) {
       const unsubscribeUrl = signup?.unsubscribe_token
         ? `${SITE_URL}/unsubscribe?token=${encodeURIComponent(signup.unsubscribe_token)}`
         : `${SITE_URL}/unsubscribe`;
-      const calEvent = buildCalendarEvent(db);
+      const calEvent = buildCalendarEvent(effective);
       const html = rsvpConfirmationHtml(calEvent, name, unsubscribeUrl);
-      const subject = `You're in for ${db.title}`;
+      const subject = `You're in for ${effective.title}`;
       await resend.emails.send({
         from: EMAIL_FROM,
         to: email,

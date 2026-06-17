@@ -33,6 +33,11 @@ export interface PublicEvent {
   legacy: boolean;
 }
 
+// ATX UXR is Austin-based — render every event in Central Time regardless of
+// where the server (Netlify Functions = UTC) or the visitor sits. Override via
+// EVENT_TIMEZONE env if the community ever travels.
+const EVENT_TZ = process.env.EVENT_TIMEZONE || "America/Chicago";
+
 function formatDisplay(iso: string): {
   day: string;
   date: string;
@@ -41,27 +46,23 @@ function formatDisplay(iso: string): {
 } {
   try {
     const d = new Date(iso);
-    const days = ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"];
-    const months = [
-      "JAN",
-      "FEB",
-      "MAR",
-      "APR",
-      "MAY",
-      "JUN",
-      "JUL",
-      "AUG",
-      "SEP",
-      "OCT",
-      "NOV",
-      "DEC",
-    ];
-    const pad = (n: number) => String(n).padStart(2, "0");
+    // Pull the calendar parts in the event timezone via Intl, then map them
+    // back to the display strings the EventRow expects.
+    const parts = new Intl.DateTimeFormat("en-US", {
+      timeZone: EVENT_TZ,
+      weekday: "short",
+      month: "short",
+      day: "2-digit",
+      year: "numeric",
+    }).formatToParts(d);
+    const get = (t: string) =>
+      parts.find((p) => p.type === t)?.value || "";
     return {
-      day: days[d.getDay()] || "",
-      date: `${months[d.getMonth()] || ""} ${pad(d.getDate())}`,
-      year: String(d.getFullYear()),
+      day: get("weekday").toUpperCase(),
+      date: `${get("month").toUpperCase()} ${get("day")}`,
+      year: get("year"),
       time: d.toLocaleTimeString("en-US", {
+        timeZone: EVENT_TZ,
         hour: "numeric",
         minute: "2-digit",
       }),
@@ -143,7 +144,11 @@ function fromDb(e: DbEvent): PublicEvent {
   if (e.ends_at) {
     try {
       const end = new Date(e.ends_at);
-      timeStr = `${disp.time} – ${end.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}`;
+      timeStr = `${disp.time} – ${end.toLocaleTimeString("en-US", {
+        timeZone: EVENT_TZ,
+        hour: "numeric",
+        minute: "2-digit",
+      })}`;
     } catch {
       /* ignore */
     }
