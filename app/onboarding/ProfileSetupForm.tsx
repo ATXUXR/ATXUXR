@@ -7,6 +7,7 @@ import { Icon } from "@/components/ui/Icon";
 import { Tag } from "@/components/ui/Tag";
 import { initials, toneForName } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/client";
+import { uploadImage } from "@/lib/supabase/upload";
 
 export interface ProfileSeed {
   name: string;
@@ -118,6 +119,10 @@ export function ProfileSetupForm({ seed, isSetup }: Props) {
   const [form, setForm] = useState<ProfileSeed>(seed);
   const [tagInput, setTagInput] = useState("");
   const [saving, setSaving] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  // The previewed photo is a base64 data URL until save. On save we upload the
+  // chosen file to Supabase Storage and replace the data URL with the public URL.
+  const [pendingPhotoFile, setPendingPhotoFile] = useState<File | null>(null);
 
   const set = <K extends keyof ProfileSeed>(k: K, v: ProfileSeed[K]) =>
     setForm((f) => ({ ...f, [k]: v }));
@@ -125,6 +130,7 @@ export function ProfileSetupForm({ seed, isSetup }: Props) {
   const onPhoto = (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    setPendingPhotoFile(file);
     const r = new FileReader();
     r.onload = () => set("photo", typeof r.result === "string" ? r.result : null);
     r.readAsDataURL(file);
@@ -159,6 +165,28 @@ export function ProfileSetupForm({ seed, isSetup }: Props) {
         return;
       }
 
+      // If a new file was picked, upload it to Storage and use the public URL.
+      let photoUrl = form.photo;
+      if (pendingPhotoFile) {
+        setUploading(true);
+        try {
+          const { url } = await uploadImage({
+            bucket: "avatars",
+            file: pendingPhotoFile,
+          });
+          photoUrl = url;
+        } catch (err) {
+          setError(
+            err instanceof Error
+              ? `Photo upload failed: ${err.message}`
+              : "Photo upload failed",
+          );
+          return;
+        } finally {
+          setUploading(false);
+        }
+      }
+
       // Upsert the members row (RLS lets a user write only their own).
       const { error: upsertError } = await supabase.from("members").upsert(
         {
@@ -172,7 +200,7 @@ export function ProfileSetupForm({ seed, isSetup }: Props) {
           linkedin: form.linkedin,
           website: form.website,
           expertise: form.expertise,
-          photo: form.photo,
+          photo: photoUrl,
           fresh: false,
         },
         { onConflict: "id" },
@@ -183,6 +211,7 @@ export function ProfileSetupForm({ seed, isSetup }: Props) {
         return;
       }
 
+      setPendingPhotoFile(null);
       router.push("/profile");
       router.refresh();
     } catch (e) {
@@ -274,7 +303,10 @@ export function ProfileSetupForm({ seed, isSetup }: Props) {
               {form.photo && (
                 <button
                   type="button"
-                  onClick={() => set("photo", null)}
+                  onClick={() => {
+                    set("photo", null);
+                    setPendingPhotoFile(null);
+                  }}
                   style={{
                     marginLeft: 10,
                     background: "none",
@@ -486,11 +518,17 @@ export function ProfileSetupForm({ seed, isSetup }: Props) {
             <Btn
               variant="primary"
               size="lg"
-              icon="check"
+              icon={uploading || saving ? "loader" : "check"}
               onClick={save}
-              disabled={saving}
+              disabled={saving || uploading}
             >
-              {isSetup ? "Finish setup" : "Save changes"}
+              {uploading
+                ? "Uploading photo…"
+                : saving
+                ? "Saving…"
+                : isSetup
+                ? "Finish setup"
+                : "Save changes"}
             </Btn>
           </div>
         </div>

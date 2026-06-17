@@ -1,7 +1,7 @@
 import Link from "next/link";
-import { redirect } from "next/navigation";
+import { notFound } from "next/navigation";
+import type { Metadata } from "next";
 import { createClient } from "@/lib/supabase/server";
-import { Btn } from "@/components/ui/Button";
 import { Icon } from "@/components/ui/Icon";
 import { Tag } from "@/components/ui/Tag";
 import { Avatar } from "@/components/ui/Avatar";
@@ -10,65 +10,63 @@ import { ProfileLinks } from "@/components/ProfileLinks";
 import { formatDate, toneForTag } from "@/lib/utils";
 import { getPostsByAuthor } from "@/lib/posts";
 
-export const metadata = { title: "Profile" };
+interface PageProps {
+  params: Promise<{ id: string }>;
+}
 
-export default async function ProfilePage() {
+async function getMember(id: string) {
   if (
     !process.env.NEXT_PUBLIC_SUPABASE_URL ||
     !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
   ) {
-    return (
-      <section style={{ background: "var(--bg)" }}>
-        <div
-          style={{
-            maxWidth: 760,
-            margin: "0 auto",
-            padding: "96px 28px",
-            textAlign: "center",
-          }}
-        >
-          <h1
-            style={{
-              fontSize: "clamp(2rem, 1.4rem + 2vw, 3rem)",
-              margin: "0 0 14px",
-            }}
-          >
-            Sign in to view your profile
-          </h1>
-          <p style={{ color: "var(--fg-muted)" }}>
-            Once Supabase is configured and you sign in, this is where your
-            ATX UXR profile lives.
-          </p>
-        </div>
-      </section>
-    );
+    return null;
   }
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("members")
+    .select("*")
+    .eq("id", id)
+    .maybeSingle();
+  return data;
+}
+
+export async function generateMetadata({
+  params,
+}: PageProps): Promise<Metadata> {
+  const { id } = await params;
+  const member = await getMember(id);
+  if (!member) return { title: "Member not found" };
+  const name = member.name || "ATX UXR member";
+  const subtitle =
+    [member.role, member.company].filter(Boolean).join(" at ") ||
+    "Austin UX researcher";
+  return {
+    title: name,
+    description: `${name} — ${subtitle}. Part of the ATX UXR community.`,
+    openGraph: {
+      title: `${name} · ATX UXR`,
+      description: `${subtitle} in the ATX UXR community.`,
+      type: "profile",
+      images: member.photo ? [{ url: member.photo }] : undefined,
+    },
+  };
+}
+
+export default async function MemberProfilePage({ params }: PageProps) {
+  const { id } = await params;
+  const member = await getMember(id);
+  if (!member) notFound();
 
   const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  if (!user) redirect("/?auth=signin");
+  const isMe = user?.id === member.id;
 
-  const { data: member } = await supabase
-    .from("members")
-    .select("*")
-    .eq("id", user.id)
-    .maybeSingle();
-
-  // First-run users without a member row, or `fresh` flag still true, get
-  // bounced into onboarding.
-  if (!member || member.fresh) {
-    redirect("/onboarding");
-  }
-
-  const posts = await getPostsByAuthor(user.id, { includePending: true });
-  const published = posts.filter((p) => p.status === "published");
-  const pending = posts.filter((p) => p.status === "pending");
+  const posts = await getPostsByAuthor(member.id);
 
   return (
     <>
-      {/* Banner */}
       <section
         style={{
           position: "relative",
@@ -119,7 +117,6 @@ export default async function ProfilePage() {
             padding: "0 28px 70px",
           }}
         >
-          {/* Header card */}
           <div
             style={{
               marginTop: -56,
@@ -167,7 +164,7 @@ export default async function ProfilePage() {
                     {member.name || "Unnamed member"}
                   </h1>
                   {member.admin && <Tag tone="ink">Organizer</Tag>}
-                  <Tag tone="flame">You</Tag>
+                  {isMe && <Tag tone="flame">You</Tag>}
                 </div>
                 <div
                   style={{
@@ -216,32 +213,14 @@ export default async function ProfilePage() {
                       gap: 7,
                     }}
                   >
-                    <Icon name="mail" size={15} />
-                    {member.email}
-                  </span>
-                  <span
-                    style={{
-                      display: "inline-flex",
-                      alignItems: "center",
-                      gap: 7,
-                    }}
-                  >
                     <Icon name="calendar" size={15} />
                     Joined {formatDate(member.joined)}
                   </span>
                 </div>
               </div>
-              <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-                <Link href="/onboarding" style={{ textDecoration: "none" }}>
-                  <Btn variant="secondary" icon="settings">
-                    Edit profile
-                  </Btn>
-                </Link>
-              </div>
             </div>
           </div>
 
-          {/* Body */}
           <div
             className="profile-body"
             style={{
@@ -255,12 +234,7 @@ export default async function ProfilePage() {
             <div>
               {member.bio && (
                 <div style={{ marginBottom: 34 }}>
-                  <h2
-                    style={{
-                      fontSize: "var(--text-2xl)",
-                      margin: "0 0 12px",
-                    }}
-                  >
+                  <h2 style={{ fontSize: "var(--text-2xl)", margin: "0 0 12px" }}>
                     About
                   </h2>
                   <p
@@ -275,20 +249,19 @@ export default async function ProfilePage() {
                   </p>
                 </div>
               )}
-
-              <div style={{ marginBottom: 30 }}>
+              <div>
                 <h2 style={{ fontSize: "var(--text-2xl)", margin: "0 0 16px" }}>
-                  Your posts
-                  {published.length > 0 && (
+                  Posts by {(member.name || "this member").split(" ")[0]}
+                  {posts.length > 0 && (
                     <span
                       style={{ color: "var(--fg-subtle)", fontWeight: 400 }}
                     >
                       {" "}
-                      ({published.length})
+                      ({posts.length})
                     </span>
                   )}
                 </h2>
-                {published.length === 0 ? (
+                {posts.length === 0 ? (
                   <div
                     style={{
                       padding: "34px 28px",
@@ -304,14 +277,9 @@ export default async function ProfilePage() {
                       size={26}
                       style={{ color: "var(--fg-subtle)" }}
                     />
-                    <p style={{ margin: "10px 0 14px", fontSize: 14.5 }}>
-                      You haven&apos;t published a post yet.
+                    <p style={{ margin: "10px 0 0", fontSize: 14.5 }}>
+                      No posts published yet.
                     </p>
-                    <Link href="/blog/new" style={{ textDecoration: "none" }}>
-                      <Btn variant="primary" size="sm" icon="pen-line">
-                        Write your first post
-                      </Btn>
-                    </Link>
                   </div>
                 ) : (
                   <div
@@ -322,75 +290,13 @@ export default async function ProfilePage() {
                       gap: 20,
                     }}
                   >
-                    {published.map((p) => (
+                    {posts.map((p) => (
                       <PostCard key={p.id} post={p} />
                     ))}
                   </div>
                 )}
               </div>
-
-              {pending.length > 0 && (
-                <div>
-                  <h2
-                    style={{
-                      fontSize: "var(--text-2xl)",
-                      margin: "0 0 16px",
-                    }}
-                  >
-                    Awaiting review{" "}
-                    <span style={{ color: "var(--fg-subtle)", fontWeight: 400 }}>
-                      ({pending.length})
-                    </span>
-                  </h2>
-                  <div
-                    style={{
-                      display: "flex",
-                      flexDirection: "column",
-                      gap: 12,
-                    }}
-                  >
-                    {pending.map((p) => (
-                      <div
-                        key={p.id}
-                        style={{
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "space-between",
-                          gap: 16,
-                          background: "var(--surface)",
-                          border: "1px solid var(--border)",
-                          borderRadius: "var(--radius-md)",
-                          padding: "14px 18px",
-                          flexWrap: "wrap",
-                        }}
-                      >
-                        <div>
-                          <div
-                            style={{
-                              fontSize: 15,
-                              fontWeight: 600,
-                              color: "var(--fg)",
-                            }}
-                          >
-                            {p.title}
-                          </div>
-                          <div
-                            style={{
-                              fontSize: 12.5,
-                              color: "var(--fg-subtle)",
-                            }}
-                          >
-                            Submitted {formatDate(p.created_at)}
-                          </div>
-                        </div>
-                        <Tag tone="honey">Pending review</Tag>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
             </div>
-
             <aside
               style={{
                 display: "flex",
@@ -420,13 +326,7 @@ export default async function ProfilePage() {
                   >
                     Research interests
                   </h3>
-                  <div
-                    style={{
-                      display: "flex",
-                      flexWrap: "wrap",
-                      gap: 8,
-                    }}
-                  >
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
                     {member.expertise.map((t: string) => (
                       <Tag key={t} tone={toneForTag(t)}>
                         {t}
@@ -439,6 +339,7 @@ export default async function ProfilePage() {
                 linkedin={member.linkedin}
                 website={member.website}
                 email={member.email}
+                showEmail={Boolean(user)}
               />
             </aside>
           </div>

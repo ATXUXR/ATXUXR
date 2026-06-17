@@ -237,3 +237,75 @@ code {
 
 ::selection { background: var(--orange-200); color: var(--neutral-950); }
 :focus-visible { outline: 3px solid var(--ring); outline-offset: 2px; }
+
+/* =============================================================
+   ARTICLE PROSE — shared by reading view + contribute preview.
+   Ported from the design prototype's PROSE_CSS.
+   ============================================================= */
+.atx-prose {
+  font-family: var(--font-sans);
+  font-size: 18px;
+  line-height: 1.72;
+  color: var(--neutral-800);
+}
+.atx-prose > *:first-child { margin-top: 0; }
+.atx-prose p { margin: 0 0 1.15em; max-width: none; }
+.atx-prose h2 {
+  font-family: var(--font-display);
+  font-size: 28px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--fg);
+  margin: 1.7em 0 0.5em;
+  line-height: 1.15;
+}
+.atx-prose h3 {
+  font-family: var(--font-display);
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--fg);
+  margin: 1.5em 0 0.4em;
+}
+.atx-prose ul, .atx-prose ol { margin: 0 0 1.2em; padding-left: 1.4em; }
+.atx-prose li { margin: 0.35em 0; }
+.atx-prose blockquote {
+  margin: 1.5em 0;
+  padding: 4px 0 4px 22px;
+  border-left: 3px solid var(--primary);
+  font-family: var(--font-display);
+  font-size: 22px;
+  font-weight: 500;
+  line-height: 1.35;
+  color: var(--fg);
+  letter-spacing: -0.01em;
+}
+.atx-prose a {
+  color: var(--link);
+  text-decoration: underline;
+  text-decoration-color: var(--orange-200);
+  text-underline-offset: 3px;
+}
+.atx-prose strong { font-weight: 700; color: var(--fg); }
+.atx-prose em { font-style: italic; }
+
+/* TipTap empty placeholder hook */
+.atx-prose [data-placeholder]:empty::before {
+  content: attr(data-placeholder);
+  color: var(--fg-subtle);
+  pointer-events: none;
+}
+
+/* Responsive grids used by blog/community/profile */
+@media (max-width: 900px) {
+  .blog-grid, .community-grid { grid-template-columns: repeat(2, 1fr) !important; }
+  .profile-body { grid-template-columns: 1fr !important; }
+  .profile-posts { grid-template-columns: 1fr !important; }
+  .blog-featured { grid-template-columns: 1fr !important; }
+}
+@media (max-width: 620px) {
+  .blog-grid, .community-grid { grid-template-columns: 1fr !important; }
+  .setup-row { grid-template-columns: 1fr !important; }
+  .admin-stats { grid-template-columns: 1fr !important; }
+  .admin-sub-row { grid-template-columns: 1fr !important; }
+  .admin-sub-cover { display: none !important; }
+}

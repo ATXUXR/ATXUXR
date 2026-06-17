@@ -46,3 +46,44 @@ export function readMinutes(html: string): number {
   const words = (html || "").replace(/<[^>]+>/g, " ").trim().split(/\s+/).length;
   return Math.max(1, Math.round(words / 200));
 }
+
+/** Words in stripped HTML — used by the contribute editor for live word count. */
+export function wordCount(html: string): number {
+  const stripped = (html || "").replace(/<[^>]+>/g, " ").trim();
+  if (!stripped) return 0;
+  return stripped.split(/\s+/).filter(Boolean).length;
+}
+
+/** "May 28, 2026"-style date from an ISO date or YYYY-MM-DD string. */
+export function formatDate(d: string | Date | null | undefined): string {
+  if (!d) return "";
+  try {
+    const date =
+      typeof d === "string"
+        ? new Date(d.length === 10 ? d + "T00:00:00" : d)
+        : d;
+    return date.toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    });
+  } catch {
+    return String(d);
+  }
+}
+
+/** "2m ago" / "3h ago" / "5d ago" / formatted date — for comment timestamps. */
+export function relativeTime(iso: string | Date): string {
+  const then = new Date(iso).getTime();
+  if (!Number.isFinite(then)) return "";
+  const now = Date.now();
+  const s = Math.max(1, Math.round((now - then) / 1000));
+  if (s < 60) return "just now";
+  const m = Math.round(s / 60);
+  if (m < 60) return `${m}m ago`;
+  const h = Math.round(m / 60);
+  if (h < 24) return `${h}h ago`;
+  const d = Math.round(h / 24);
+  if (d < 30) return `${d}d ago`;
+  return formatDate(typeof iso === "string" ? iso : iso.toISOString());
+}
