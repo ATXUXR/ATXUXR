@@ -9,7 +9,7 @@ import { AdminShell } from "./AdminShell";
 export const metadata = { title: "Admin" };
 
 interface PageProps {
-  searchParams: Promise<{ tab?: string }>;
+  searchParams: Promise<{ tab?: string; days?: string }>;
 }
 
 export default async function AdminPage({ searchParams }: PageProps) {
@@ -23,6 +23,8 @@ export default async function AdminPage({ searchParams }: PageProps) {
     | "feedback"
     | "email"
     | "analytics";
+  const rawDays = Number(sp.days);
+  const days = [7, 30, 90].includes(rawDays) ? rawDays : 30;
 
   if (
     !process.env.NEXT_PUBLIC_SUPABASE_URL ||
@@ -56,7 +58,7 @@ export default async function AdminPage({ searchParams }: PageProps) {
     );
   }
 
-  const bundle = await getAdminBundle();
+  const bundle = await getAdminBundle({ analyticsDays: days });
   if (!bundle) {
     return (
       <NotAdmin
@@ -125,7 +127,7 @@ export default async function AdminPage({ searchParams }: PageProps) {
         </div>
       </section>
 
-      <AdminShell bundle={bundle} tab={tab} meId={me.id} />
+      <AdminShell bundle={bundle} tab={tab} meId={me.id} days={days} />
     </>
   );
 }

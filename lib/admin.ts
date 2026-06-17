@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import type { PostWithAuthor } from "@/lib/posts";
+import { getDashboardData, type DashboardData } from "@/lib/analytics";
 
 export interface AdminMember {
   id: string;
@@ -89,11 +90,14 @@ export interface AdminBundle {
   emails: EmailRow[];
   reactionStats: Record<string, number>;
   topTags: Array<{ tag: string; count: number }>;
+  analytics: DashboardData;
 }
 
 const AUTHOR_FIELDS = "id, name, photo, role, company, bio";
 
-export async function getAdminBundle(): Promise<AdminBundle | null> {
+export async function getAdminBundle(
+  options: { analyticsDays?: number } = {},
+): Promise<AdminBundle | null> {
   if (
     !process.env.NEXT_PUBLIC_SUPABASE_URL ||
     !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
@@ -167,6 +171,8 @@ export async function getAdminBundle(): Promise<AdminBundle | null> {
     .sort((a, b) => b.count - a.count)
     .slice(0, 8);
 
+  const analytics = await getDashboardData(options.analyticsDays ?? 30);
+
   return {
     pending,
     published,
@@ -179,5 +185,6 @@ export async function getAdminBundle(): Promise<AdminBundle | null> {
     emails: (emailsRes.data ?? []) as EmailRow[],
     reactionStats,
     topTags,
+    analytics,
   };
 }

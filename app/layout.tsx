@@ -4,6 +4,7 @@ import { NavServer } from "@/components/NavServer";
 import { Footer } from "@/components/Footer";
 import { Feedback } from "@/components/Feedback";
 import { AuthModal } from "@/components/AuthModal";
+import { Telemetry } from "@/components/Telemetry";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -70,6 +71,9 @@ export default function RootLayout({
         <Feedback />
         <Suspense fallback={null}>
           <AuthModal />
+        </Suspense>
+        <Suspense fallback={null}>
+          <Telemetry />
         </Suspense>
       </body>
     </html>

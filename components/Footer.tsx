@@ -3,6 +3,7 @@ import { Wordmark } from "./Wordmark";
 import { Icon } from "./ui/Icon";
 import { SOCIALS } from "@/lib/events";
 import { Mailing } from "./Mailing";
+import { DntToggle } from "./DntToggle";
 
 const NAV: { label: string; href: string }[] = [
   { label: "Home", href: "/" },
@@ -158,11 +159,21 @@ export function Footer() {
             <span>© 2026 ATX UXR · Austin UX Researchers</span>
             <span
               style={{
-                fontFamily: "var(--font-mono)",
-                letterSpacing: "0.04em",
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 16,
+                flexWrap: "wrap",
               }}
             >
-              MADE WITH CARE IN AUSTIN, TX
+              <DntToggle />
+              <span
+                style={{
+                  fontFamily: "var(--font-mono)",
+                  letterSpacing: "0.04em",
+                }}
+              >
+                MADE WITH CARE IN AUSTIN, TX
+              </span>
             </span>
           </div>
         </div>

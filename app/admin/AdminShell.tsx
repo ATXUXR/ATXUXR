@@ -26,9 +26,10 @@ interface Props {
   bundle: AdminBundle;
   tab: TabKey;
   meId: string;
+  days: number;
 }
 
-export function AdminShell({ bundle, tab, meId }: Props) {
+export function AdminShell({ bundle, tab, meId, days }: Props) {
   const params = useSearchParams();
 
   const tabs: Array<{ key: TabKey; label: string; count?: number }> = [
@@ -149,20 +150,7 @@ export function AdminShell({ bundle, tab, meId }: Props) {
             <EmailTab emails={bundle.emails} signups={bundle.signups} />
           )}
           {tab === "analytics" && (
-            <AnalyticsTab
-              memberCount={bundle.members.length}
-              publishedCount={bundle.published.length}
-              signupCount={bundle.signups.length}
-              topTags={bundle.topTags}
-              topPosts={bundle.published
-                .map((p) => ({
-                  id: p.id,
-                  title: p.title,
-                  reactions: bundle.reactionStats[p.id] || 0,
-                }))
-                .sort((a, b) => b.reactions - a.reactions)
-                .slice(0, 8)}
-            />
+            <AnalyticsTab data={bundle.analytics} days={days} />
           )}
         </div>
       </section>
