@@ -57,6 +57,26 @@ export function Nav({ initialUser, isAdmin = false }: NavProps) {
     return () => document.removeEventListener("mousedown", handler);
   }, []);
 
+  // Lock body scroll when the mobile drawer is open + close on Escape.
+  useEffect(() => {
+    if (!open) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setOpen(false);
+    };
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.body.style.overflow = prev;
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [open]);
+
+  // Close the mobile drawer when route changes.
+  useEffect(() => {
+    setOpen(false);
+  }, [pathname]);
+
   const logOut = async () => {
     setMenuOpen(false);
     await supabase.auth.signOut();
@@ -277,7 +297,76 @@ export function Nav({ initialUser, isAdmin = false }: NavProps) {
               </Link>
             );
           })}
-          {!user && (
+          {user ? (
+            <>
+              <Link
+                href="/profile"
+                onClick={() => setOpen(false)}
+                style={{
+                  display: "block",
+                  padding: "12px 0",
+                  fontSize: 17,
+                  fontWeight: 600,
+                  borderBottom: "1px solid var(--border)",
+                  color: "var(--fg)",
+                }}
+              >
+                Profile
+              </Link>
+              <Link
+                href="/blog/new"
+                onClick={() => setOpen(false)}
+                style={{
+                  display: "block",
+                  padding: "12px 0",
+                  fontSize: 17,
+                  fontWeight: 600,
+                  borderBottom: "1px solid var(--border)",
+                  color: "var(--fg)",
+                }}
+              >
+                Contribute
+              </Link>
+              {isAdmin && (
+                <Link
+                  href="/admin"
+                  onClick={() => setOpen(false)}
+                  style={{
+                    display: "block",
+                    padding: "12px 0",
+                    fontSize: 17,
+                    fontWeight: 600,
+                    borderBottom: "1px solid var(--border)",
+                    color: "var(--fg)",
+                  }}
+                >
+                  Admin
+                </Link>
+              )}
+              <button
+                type="button"
+                onClick={async () => {
+                  setOpen(false);
+                  await supabase.auth.signOut();
+                  router.refresh();
+                }}
+                style={{
+                  display: "block",
+                  width: "100%",
+                  textAlign: "left",
+                  padding: "12px 0",
+                  fontSize: 17,
+                  fontWeight: 600,
+                  background: "none",
+                  border: "none",
+                  cursor: "pointer",
+                  color: "var(--fg-muted)",
+                }}
+              >
+                Log out
+              </button>
+            </>
+          ) : (
             <Link
               href="/?auth=signin"
               onClick={() => setOpen(false)}

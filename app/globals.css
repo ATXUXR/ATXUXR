@@ -301,11 +301,122 @@ code {
   .profile-body { grid-template-columns: 1fr !important; }
   .profile-posts { grid-template-columns: 1fr !important; }
   .blog-featured { grid-template-columns: 1fr !important; }
+  /* Event detail: collapse 1fr/400px sidebar */
+  .detail-grid { grid-template-columns: 1fr !important; }
+  .rsvp-card { position: static !important; }
+  /* Home page mission grid */
+  .mission-grid { grid-template-columns: 1fr !important; }
+  /* Event types 3-up */
+  .types-grid { grid-template-columns: 1fr !important; }
 }
-@media (max-width: 620px) {
+
+/* =============================================================
+   MOBILE BREAKPOINT — 720px and below
+   Adapts inline-styled grids/flex layouts that don't collapse.
+   Used in concert with className hooks added to components.
+   ============================================================= */
+@media (max-width: 720px) {
+  /* --- Nav: hide desktop links, show hamburger --- */
+  .nav-desktop { display: none !important; }
+  .nav-burger { display: inline-flex !important; }
+
+  /* --- Page padding: tighten horizontal gutters --- */
+  .page-pad-x { padding-left: 18px !important; padding-right: 18px !important; }
+  .page-pad-y { padding-top: 44px !important; padding-bottom: 44px !important; }
+
+  /* --- Grid collapse helpers --- */
+  .grid-2col-mobile-1 { grid-template-columns: 1fr !important; }
+  .grid-3col-mobile-1 { grid-template-columns: 1fr !important; }
   .blog-grid, .community-grid { grid-template-columns: 1fr !important; }
   .setup-row { grid-template-columns: 1fr !important; }
   .admin-stats { grid-template-columns: 1fr !important; }
-  .admin-sub-row { grid-template-columns: 1fr !important; }
+  .admin-sub-row {
+    grid-template-columns: auto 1fr !important;
+    grid-template-areas: "check title" "actions actions" !important;
+    gap: 12px !important;
+  }
+  .admin-sub-row > input[type="checkbox"] { grid-area: check; }
+  .admin-sub-row > .admin-sub-title { grid-area: title; }
+  .admin-sub-row > .admin-sub-actions { grid-area: actions; justify-content: flex-start !important; }
   .admin-sub-cover { display: none !important; }
+  .mission-grid { grid-template-columns: 1fr !important; gap: 28px !important; }
+  .types-grid { grid-template-columns: 1fr !important; }
+  .detail-grid { grid-template-columns: 1fr !important; gap: 28px !important; }
+  .rsvp-card { position: static !important; }
+
+  /* --- EventRow: stack date + body + CTA --- */
+  .event-row {
+    grid-template-columns: 1fr !important;
+    gap: 14px !important;
+    padding: 18px !important;
+  }
+  .event-row .event-date {
+    display: flex !important;
+    align-items: baseline !important;
+    gap: 10px !important;
+    border-right: none !important;
+    border-bottom: 1px solid var(--border) !important;
+    padding-right: 0 !important;
+    padding-bottom: 12px !important;
+    text-align: left !important;
+  }
+  .event-row .event-cta { width: 100% !important; }
+  .event-row .event-cta a, .event-row .event-cta button { width: 100% !important; justify-content: center !important; }
+
+  /* --- Profile / member header card: tighten padding --- */
+  .profile-header-card {
+    padding-left: 20px !important;
+    padding-right: 20px !important;
+    padding-bottom: 22px !important;
+  }
+  .profile-banner-pad { padding-left: 18px !important; padding-right: 18px !important; }
+
+  /* --- Forms: shrink horizontal padding --- */
+  .form-card { padding: 22px 20px 24px !important; }
+
+  /* --- Hide on mobile / Show on mobile --- */
+  .hide-mobile { display: none !important; }
+  .show-mobile { display: revert !important; }
+
+  /* --- Hero blocks: tighter vertical rhythm --- */
+  .hero-pad { padding-top: 48px !important; padding-bottom: 36px !important; }
+
+  /* --- Sticky toolbar headers (blog/community/admin tabs): tighten gap --- */
+  .sticky-toolbar { padding: 14px 18px !important; gap: 10px !important; }
+
+  /* --- Feedback widget: smaller, lower z so it doesn't block nav --- */
+  .feedback-fab {
+    right: 14px !important;
+    bottom: 14px !important;
+    padding: 10px 14px !important;
+    font-size: 13.5px !important;
+  }
+  .feedback-fab-label { display: none !important; }
+
+  /* --- Article header: smaller padding --- */
+  .article-pad { padding-left: 18px !important; padding-right: 18px !important; }
+
+  /* --- Contribute form Title input: shrink display type --- */
+  .contribute-title-input { font-size: 20px !important; padding: 10px 14px !important; }
+
+  /* --- Comments form: stack avatar above textarea --- */
+  .comments-form { flex-direction: column !important; }
+
+  /* --- Mailing list 2-col name fields stack --- */
+  .mailing-name-row { grid-template-columns: 1fr !important; }
+
+  /* --- Donate / Volunteer Card: less padding --- */
+  .narrow-card { padding: 22px 20px 24px !important; }
+
+  /* --- Featured post inner padding shrink --- */
+  .blog-featured > div { padding: 26px 22px !important; }
+
+  /* --- Tag picker / TagPicker overflow --- */
+  .tag-picker { gap: 6px !important; }
+}
+
+/* Very tight phones: 380px and below — further reduce gutters */
+@media (max-width: 380px) {
+  .page-pad-x { padding-left: 14px !important; padding-right: 14px !important; }
+  .form-card, .narrow-card { padding: 20px 16px 22px !important; }
 }

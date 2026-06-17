@@ -59,6 +59,7 @@ export function Feedback() {
         type="button"
         onClick={() => setOpen(true)}
         aria-label="Send feedback"
+        className="feedback-fab"
         style={{
           position: "fixed",
           right: 22,
@@ -79,7 +80,8 @@ export function Feedback() {
           fontSize: 14.5,
         }}
       >
-        <Icon name="message-square" size={17} /> Feedback
+        <Icon name="message-square" size={17} />{" "}
+        <span className="feedback-fab-label">Feedback</span>
       </button>
 
       <Modal open={open} onClose={close} width={440}>

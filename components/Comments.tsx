@@ -88,6 +88,7 @@ export function Comments({ postId, comments, currentMember }: Props) {
       </h2>
       <form
         onSubmit={submit}
+        className="comments-form"
         style={{
           display: "flex",
           gap: 12,

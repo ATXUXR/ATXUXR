@@ -261,6 +261,7 @@ export function ProfileSetupForm({ seed, isSetup }: Props) {
         )}
 
         <div
+          className="form-card"
           style={{
             display: "flex",
             flexDirection: "column",

@@ -127,6 +127,7 @@ export function Mailing() {
             style={{ maxWidth: 480, margin: "0 auto", textAlign: "left" }}
           >
             <div
+              className="mailing-name-row"
               style={{
                 display: "grid",
                 gridTemplateColumns: "1fr 1fr",

@@ -199,7 +199,7 @@ function SubmissionRow({
       >
         <PostCover post={post} height={72} radius="var(--radius-md)" flat />
       </div>
-      <div style={{ minWidth: 0 }}>
+      <div className="admin-sub-title" style={{ minWidth: 0 }}>
         <div
           style={{
             display: "flex",

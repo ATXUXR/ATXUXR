@@ -118,6 +118,7 @@ export default async function MemberProfilePage({ params }: PageProps) {
           }}
         >
           <div
+            className="profile-header-card"
             style={{
               marginTop: -56,
               background: "var(--surface)",

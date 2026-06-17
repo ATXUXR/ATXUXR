@@ -339,6 +339,7 @@ export function ContributeForm({ me }: Props) {
 
           <Field label="Title">
             <input
+              className="contribute-title-input"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               placeholder="A clear, specific headline"

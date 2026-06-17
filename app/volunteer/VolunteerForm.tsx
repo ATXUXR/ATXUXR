@@ -46,6 +46,7 @@ const labelStyle: React.CSSProperties = {
 function Card({ children }: { children: React.ReactNode }) {
   return (
     <div
+      className="narrow-card"
       style={{
         maxWidth: 560,
         margin: "0 auto",
@@ -133,6 +134,7 @@ export function VolunteerForm() {
             />
           </div>
           <div
+            className="setup-row"
             style={{
               display: "grid",
               gridTemplateColumns: "1fr 1fr",
@@ -149,6 +151,7 @@ export function VolunteerForm() {
             </div>
           </div>
           <div
+            className="setup-row"
             style={{
               display: "grid",
               gridTemplateColumns: "1fr 1fr",

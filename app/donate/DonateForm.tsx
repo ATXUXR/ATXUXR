@@ -18,6 +18,7 @@ interface PayPalHostedButtons {
 function Card({ children }: { children: React.ReactNode }) {
   return (
     <div
+      className="narrow-card"
       style={{
         maxWidth: 560,
         margin: "0 auto",

@@ -121,6 +121,7 @@ export default async function ProfilePage() {
         >
           {/* Header card */}
           <div
+            className="profile-header-card"
             style={{
               marginTop: -56,
               background: "var(--surface)",
