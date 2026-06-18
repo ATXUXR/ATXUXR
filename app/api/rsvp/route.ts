@@ -252,11 +252,20 @@ export async function POST(request: Request) {
     const calEvent = buildCalendarEvent(effective);
     const html = rsvpConfirmationHtml(calEvent, name, unsubscribeUrl);
     try {
+      // `Reply-To` makes the message look like a real human's note, not a
+      // marketing blast — Gmail uses this as a signal.
+      // `List-Unsubscribe` headers tell Gmail this is transactional list mail
+      // with a one-click opt-out, which keeps it out of Promotions.
       const result = await resend.emails.send({
         from: EMAIL_FROM,
         to: email,
+        replyTo: "hello@atxuxr.com",
         subject,
         html,
+        headers: {
+          "List-Unsubscribe": `<${unsubscribeUrl}>`,
+          "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
+        },
       });
       if (result.error) {
         // Resend returns a 200 with an `error` field for validation issues

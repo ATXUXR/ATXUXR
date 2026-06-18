@@ -234,8 +234,13 @@ export async function POST(req: NextRequest) {
         await resend.emails.send({
           from: EMAIL_FROM,
           to: r.email,
+          replyTo: "hello@atxuxr.com",
           subject,
           html: finalHtml,
+          headers: {
+            "List-Unsubscribe": `<${unsubscribeUrl}>`,
+            "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
+          },
         });
       } else {
         console.log("[event-invite] (no resend key) would send", { to: r.email, subject });
