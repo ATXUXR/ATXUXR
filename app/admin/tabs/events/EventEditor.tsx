@@ -4,8 +4,10 @@ import { useState, type FormEvent } from "react";
 import { Btn } from "@/components/ui/Button";
 import { Icon } from "@/components/ui/Icon";
 import { MapEmbed } from "@/components/MapEmbed";
+import { ShareDialog } from "@/components/admin/ShareDialog";
 import { uploadImage } from "@/lib/supabase/upload";
 import type { EventFull, AdminMember } from "@/lib/admin";
+import type { ShareContent } from "@/lib/social";
 
 interface Props {
   event: EventFull | null;
@@ -147,6 +149,37 @@ export function EventEditor({
   const isZoom = /zoom\.us|zoom\.com/.test(onlineUrl);
   const publicHref =
     isEdit && event ? `https://atxuxr.com/events/${event.id}` : "";
+  const [shareOpen, setShareOpen] = useState(false);
+
+  // Format the start time for the Share caption meta line.
+  const shareMeta = (() => {
+    if (!startsAt) return undefined;
+    try {
+      const d = new Date(startsAt);
+      const date = d.toLocaleDateString("en-US", {
+        weekday: "long",
+        month: "short",
+        day: "numeric",
+      });
+      const time = d.toLocaleTimeString("en-US", {
+        hour: "numeric",
+        minute: "2-digit",
+      });
+      const where = address || (onlineUrl ? "Online" : "");
+      return where ? `${date} · ${time} · ${where}` : `${date} · ${time}`;
+    } catch {
+      return undefined;
+    }
+  })();
+
+  const shareContent: ShareContent = {
+    kind: "event",
+    title: title || "Untitled event",
+    body: description || "",
+    url: publicHref,
+    imageUrl: image || undefined,
+    meta: shareMeta,
+  };
 
   const copyLink = async () => {
     try {
@@ -576,16 +609,13 @@ export function EventEditor({
             <Btn variant="primary" icon="send" onClick={() => onCompose?.()}>
               Send email invite
             </Btn>
-            <a
-              href={`https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(publicHref)}`}
-              target="_blank"
-              rel="noreferrer"
-              style={{ textDecoration: "none" }}
+            <Btn
+              variant="secondary"
+              icon="share-2"
+              onClick={() => setShareOpen(true)}
             >
-              <Btn variant="secondary" icon="linkedin">
-                Share on LinkedIn
-              </Btn>
-            </a>
+              Share to Slack & socials
+            </Btn>
             <Btn variant="secondary" icon="link" onClick={copyLink}>
               Copy public link
             </Btn>
@@ -602,6 +632,13 @@ export function EventEditor({
           </div>
         </div>
       )}
+
+      <ShareDialog
+        content={shareContent}
+        sourceId={event?.id ?? null}
+        open={shareOpen}
+        onClose={() => setShareOpen(false)}
+      />
     </div>
   );
 }

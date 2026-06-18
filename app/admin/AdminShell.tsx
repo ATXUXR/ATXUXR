@@ -11,11 +11,13 @@ import { VolunteersTab } from "./tabs/VolunteersTab";
 import { FeedbackTab } from "./tabs/FeedbackTab";
 import { EmailTab } from "./tabs/EmailTab";
 import { EventsTab } from "./tabs/EventsTab";
+import { ShareTab } from "./tabs/ShareTab";
 import { AnalyticsTab } from "./tabs/AnalyticsTab";
 
 type TabKey =
   | "submissions"
   | "events"
+  | "share"
   | "members"
   | "signups"
   | "rsvps"
@@ -37,6 +39,7 @@ export function AdminShell({ bundle, tab, meId, days }: Props) {
   const tabs: Array<{ key: TabKey; label: string; count?: number }> = [
     { key: "submissions", label: "Submissions", count: bundle.pending.length },
     { key: "events", label: "Events", count: bundle.eventsFull.length },
+    { key: "share", label: "Share" },
     { key: "members", label: "Members", count: bundle.members.length },
     { key: "signups", label: "Sign-ups", count: bundle.signups.length },
     { key: "rsvps", label: "RSVPs", count: bundle.rsvps.length },
@@ -143,6 +146,13 @@ export function AdminShell({ bundle, tab, meId, days }: Props) {
               events={bundle.eventsFull}
               signups={bundle.signups}
               organizers={bundle.members.filter((m) => m.admin)}
+            />
+          )}
+          {tab === "share" && (
+            <ShareTab
+              publishedPosts={bundle.published}
+              upcomingEvents={bundle.eventsFull}
+              socialPosts={bundle.socialPosts}
             />
           )}
           {tab === "members" && (

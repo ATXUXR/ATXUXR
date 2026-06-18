@@ -17,6 +17,7 @@ export default async function AdminPage({ searchParams }: PageProps) {
   const tab = (sp.tab ?? "submissions") as
     | "submissions"
     | "events"
+    | "share"
     | "members"
     | "signups"
     | "rsvps"

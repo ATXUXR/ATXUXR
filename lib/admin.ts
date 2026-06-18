@@ -97,6 +97,17 @@ export interface ReactionStat {
   count: number;
 }
 
+export interface SocialPostRow {
+  id: string;
+  kind: "event" | "blog" | "announcement";
+  source_id: string | null;
+  channel: string;
+  caption: string | null;
+  status: "sent" | "failed" | "opened";
+  error: string | null;
+  created_at: string;
+}
+
 export interface AdminBundle {
   pending: PostWithAuthor[];
   published: PostWithAuthor[];
@@ -108,6 +119,7 @@ export interface AdminBundle {
   volunteers: VolunteerRow[];
   feedback: FeedbackRow[];
   emails: EmailRow[];
+  socialPosts: SocialPostRow[];
   reactionStats: Record<string, number>;
   topTags: Array<{ tag: string; count: number }>;
   analytics: DashboardData;
@@ -135,6 +147,7 @@ export async function getAdminBundle(
     feedbackRes,
     emailsRes,
     reactionsRes,
+    socialPostsRes,
   ] = await Promise.all([
     supabase
       .from("posts")
@@ -173,6 +186,11 @@ export async function getAdminBundle(
       .order("created_at", { ascending: false })
       .limit(50),
     supabase.from("reactions").select("post_id"),
+    supabase
+      .from("social_posts")
+      .select("*")
+      .order("created_at", { ascending: false })
+      .limit(50),
   ]);
 
   const posts = (postsRes.data ?? []) as PostWithAuthor[];
@@ -217,6 +235,7 @@ export async function getAdminBundle(
     volunteers: (volunteersRes.data ?? []) as VolunteerRow[],
     feedback: (feedbackRes.data ?? []) as FeedbackRow[],
     emails: (emailsRes.data ?? []) as EmailRow[],
+    socialPosts: (socialPostsRes.data ?? []) as SocialPostRow[],
     reactionStats,
     topTags,
     analytics,
