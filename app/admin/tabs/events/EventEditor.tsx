@@ -5,10 +5,11 @@ import { Btn } from "@/components/ui/Button";
 import { Icon } from "@/components/ui/Icon";
 import { MapEmbed } from "@/components/MapEmbed";
 import { uploadImage } from "@/lib/supabase/upload";
-import type { EventFull } from "@/lib/admin";
+import type { EventFull, AdminMember } from "@/lib/admin";
 
 interface Props {
   event: EventFull | null;
+  organizers: AdminMember[];
   onSaved: (id: string) => void;
   onCancel: () => void;
   /** Only available in edit mode — opens the invite composer. */
@@ -17,6 +18,7 @@ interface Props {
 
 type Kind = "CONNECT" | "REFLECT" | "LEARN";
 type Format = "in-person" | "online";
+type Status = "open" | "closed" | "cancelled";
 
 const DEFAULT_IMAGES: { url: string; label: string }[] = [
   { url: "/assets/mark-skyline-orange.png", label: "Skyline · Orange" },
@@ -56,7 +58,13 @@ function toLocalInput(iso: string | null | undefined): string {
   }
 }
 
-export function EventEditor({ event, onSaved, onCancel, onCompose }: Props) {
+export function EventEditor({
+  event,
+  organizers,
+  onSaved,
+  onCancel,
+  onCompose,
+}: Props) {
   const isEdit = !!event;
   const initialFormat: Format = event?.online_url ? "online" : "in-person";
 
@@ -70,7 +78,10 @@ export function EventEditor({ event, onSaved, onCancel, onCompose }: Props) {
   const [onlineUrl, setOnlineUrl] = useState(event?.online_url ?? "");
   const [description, setDescription] = useState(event?.description ?? "");
   const [image, setImage] = useState<string | null>(event?.image ?? null);
-  const [status, setStatus] = useState<"open" | "closed">(event?.status ?? "open");
+  const [status, setStatus] = useState<Status>(
+    (event?.status as Status) ?? "open",
+  );
+  const [hostId, setHostId] = useState<string>(event?.host_id ?? "");
   const [busy, setBusy] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [err, setErr] = useState<string | null>(null);
@@ -110,6 +121,7 @@ export function EventEditor({ event, onSaved, onCancel, onCompose }: Props) {
         starts_at: startIso,
         ends_at: endIso,
         status,
+        host_id: hostId || null,
       };
       const url = isEdit ? `/api/admin/events/${event!.id}` : "/api/admin/events";
       const method = isEdit ? "PATCH" : "POST";
@@ -454,13 +466,14 @@ export function EventEditor({ event, onSaved, onCancel, onCompose }: Props) {
 
         <div>
           <label style={labelStyle}>Status</label>
-          <div style={{ display: "flex", gap: 8 }}>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
             {(
               [
-                ["open", "RSVP open"],
-                ["closed", "Closed"],
+                ["open", "RSVP open", "var(--primary)"],
+                ["closed", "Closed", "var(--neutral-700)"],
+                ["cancelled", "Cancelled", "var(--danger)"],
               ] as const
-            ).map(([k, lbl]) => {
+            ).map(([k, lbl, color]) => {
               const on = status === k;
               return (
                 <button
@@ -475,8 +488,8 @@ export function EventEditor({ event, onSaved, onCancel, onCompose }: Props) {
                     borderRadius: "var(--radius-pill)",
                     border:
                       "1.5px solid " +
-                      (on ? "var(--primary)" : "var(--border-strong)"),
-                    background: on ? "var(--primary)" : "var(--surface)",
+                      (on ? color : "var(--border-strong)"),
+                    background: on ? color : "var(--surface)",
                     color: on ? "#fff" : "var(--fg-muted)",
                   }}
                 >
@@ -485,6 +498,22 @@ export function EventEditor({ event, onSaved, onCancel, onCompose }: Props) {
               );
             })}
           </div>
+        </div>
+
+        <div>
+          <label style={labelStyle}>Host</label>
+          <select
+            value={hostId}
+            onChange={(e) => setHostId(e.target.value)}
+            style={{ ...fieldStyle, maxWidth: 380 }}
+          >
+            <option value="">— No host —</option>
+            {organizers.map((o) => (
+              <option key={o.id} value={o.id}>
+                {o.name || o.email}
+              </option>
+            ))}
+          </select>
         </div>
 
         {err && (

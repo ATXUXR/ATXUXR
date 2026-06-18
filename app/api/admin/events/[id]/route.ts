@@ -25,7 +25,8 @@ const EventPatch = z.object({
     .or(z.string().min(1))
     .optional()
     .nullable(),
-  status: z.enum(["open", "closed"]).optional(),
+  status: z.enum(["open", "closed", "cancelled"]).optional(),
+  host_id: z.string().uuid().optional().nullable(),
 });
 
 async function requireAdmin() {

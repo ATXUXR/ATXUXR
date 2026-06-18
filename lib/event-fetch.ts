@@ -23,7 +23,7 @@ export interface PublicEvent {
   image: string | null;
   startsAt: string; // ISO
   endsAt: string | null;
-  status: "open" | "closed";
+  status: "open" | "closed" | "cancelled";
   // Display strings derived from startsAt; the date-banner block uses these.
   day: string;
   date: string;
@@ -31,6 +31,8 @@ export interface PublicEvent {
   time: string;
   /** True if this came from the hardcoded legacy array (no DB row exists). */
   legacy: boolean;
+  /** Member who's hosting this event, when set. */
+  host: { id: string; name: string; photo: string | null } | null;
 }
 
 // ATX UXR is Austin-based — render every event in Central Time regardless of
@@ -119,6 +121,7 @@ function fromLegacy(e: AtxEvent): PublicEvent {
     year: e.year,
     time: e.time,
     legacy: true,
+    host: null,
   };
 }
 
@@ -135,7 +138,11 @@ interface DbEvent {
   image: string | null;
   starts_at: string;
   ends_at: string | null;
-  status: "open" | "closed";
+  status: "open" | "closed" | "cancelled";
+  host?:
+    | { id: string; name: string; photo: string | null }
+    | { id: string; name: string; photo: string | null }[]
+    | null;
 }
 
 function fromDb(e: DbEvent): PublicEvent {
@@ -172,6 +179,7 @@ function fromDb(e: DbEvent): PublicEvent {
     year: disp.year,
     time: timeStr,
     legacy: false,
+    host: Array.isArray(e.host) ? (e.host[0] ?? null) : (e.host ?? null),
   };
 }
 
@@ -186,7 +194,7 @@ export async function getPublicEvent(idOrSlug: string): Promise<PublicEvent | nu
     const q = supabase
       .from("events")
       .select(
-        "id, slug, kind, kind_label, title, description, where_, address, online_url, image, starts_at, ends_at, status",
+        "id, slug, kind, kind_label, title, description, where_, address, online_url, image, starts_at, ends_at, status, host:members!events_host_id_fkey(id, name, photo)",
       );
     const { data } = await (isUuid ? q.eq("id", idOrSlug) : q.eq("slug", idOrSlug))
       .maybeSingle();
@@ -203,7 +211,7 @@ export async function listPublicEvents(): Promise<PublicEvent[]> {
     const { data } = await supabase
       .from("events")
       .select(
-        "id, slug, kind, kind_label, title, description, where_, address, online_url, image, starts_at, ends_at, status",
+        "id, slug, kind, kind_label, title, description, where_, address, online_url, image, starts_at, ends_at, status, host:members!events_host_id_fkey(id, name, photo)",
       )
       .order("starts_at", { ascending: false });
     if (data && data.length > 0) {

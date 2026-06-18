@@ -88,7 +88,8 @@ export interface EventFull {
   image: string | null;
   starts_at: string;
   ends_at: string | null;
-  status: "open" | "closed";
+  status: "open" | "closed" | "cancelled";
+  host_id: string | null;
 }
 
 export interface ReactionStat {
@@ -155,7 +156,7 @@ export async function getAdminBundle(
     supabase
       .from("events")
       .select(
-        "id, slug, kind, kind_label, title, description, where_, address, online_url, image, starts_at, ends_at, status",
+        "id, slug, kind, kind_label, title, description, where_, address, online_url, image, starts_at, ends_at, status, host_id",
       )
       .order("starts_at", { ascending: false }),
     supabase

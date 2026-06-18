@@ -62,6 +62,7 @@ export default async function EventDetailPage({ params }: Props) {
 
   const tone = KIND_TONE[e.kind];
   const open = e.status === "open";
+  const cancelled = e.status === "cancelled";
   const grad = GRAD[tone];
   const all = await listPublicEvents();
   const related = all.filter((x) => x.routeId !== e.routeId).slice(0, 2);
@@ -120,7 +121,18 @@ export default async function EventDetailPage({ params }: Props) {
               <Tag tone="ink" style={{ fontSize: 11 }}>
                 {e.kindLabel || e.kind}
               </Tag>
-              {open ? (
+              {cancelled ? (
+                <Tag
+                  tone="flame"
+                  style={{
+                    fontSize: 11,
+                    background: "var(--danger, #C8442B)",
+                    color: "#fff",
+                  }}
+                >
+                  CANCELLED
+                </Tag>
+              ) : open ? (
                 <Tag
                   tone="flame"
                   style={{
@@ -207,6 +219,56 @@ export default async function EventDetailPage({ params }: Props) {
               Come as you are, bring a question, and meet the people-people of
               ATX.
             </p>
+
+            {e.host && (
+              <div style={{ marginTop: 28 }}>
+                <h3 style={{ fontSize: 20, margin: "0 0 12px" }}>Hosted by</h3>
+                <div
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 12,
+                    background: "var(--surface)",
+                    border: "1px solid var(--border)",
+                    borderRadius: "var(--radius-xl)",
+                    padding: "10px 16px 10px 10px",
+                  }}
+                >
+                  {e.host.photo ? (
+                    /* eslint-disable-next-line @next/next/no-img-element */
+                    <img
+                      src={e.host.photo}
+                      alt={e.host.name}
+                      width={40}
+                      height={40}
+                      style={{
+                        width: 40,
+                        height: 40,
+                        borderRadius: "50%",
+                        objectFit: "cover",
+                      }}
+                    />
+                  ) : (
+                    <div
+                      style={{
+                        width: 40,
+                        height: 40,
+                        borderRadius: "50%",
+                        background: "var(--primary)",
+                        color: "#fff",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        fontWeight: 700,
+                      }}
+                    >
+                      {e.host.name?.charAt(0) || "?"}
+                    </div>
+                  )}
+                  <span style={{ fontWeight: 600 }}>{e.host.name}</span>
+                </div>
+              </div>
+            )}
 
             {e.onlineUrl && (
               <div style={{ marginTop: 28 }}>

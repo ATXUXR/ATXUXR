@@ -2,7 +2,7 @@
 // When events move to Supabase, swap this for a `getEvents()` server function.
 
 export type EventKind = "CONNECT" | "REFLECT" | "LEARN";
-export type EventStatus = "open" | "closed";
+export type EventStatus = "open" | "closed" | "cancelled";
 export type TagTone = "flame" | "teal" | "honey" | "ink";
 
 export interface AtxEvent {

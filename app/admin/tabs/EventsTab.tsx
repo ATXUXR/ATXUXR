@@ -10,11 +10,12 @@ import { formatDate } from "@/lib/utils";
 import { EmptyState } from "./SubmissionsTab";
 import { EventEditor } from "./events/EventEditor";
 import { InviteComposer } from "./events/InviteComposer";
-import type { EventFull, SignupRow } from "@/lib/admin";
+import type { AdminMember, EventFull, SignupRow } from "@/lib/admin";
 
 interface Props {
   events: EventFull[];
   signups: SignupRow[];
+  organizers: AdminMember[];
 }
 
 type Mode =
@@ -29,7 +30,7 @@ const KIND_TONE = {
   LEARN: "flame",
 } as const;
 
-export function EventsTab({ events, signups }: Props) {
+export function EventsTab({ events, signups, organizers }: Props) {
   const router = useRouter();
   const [, startTransition] = useTransition();
   const [mode, setMode] = useState<Mode>({ kind: "list" });
@@ -56,6 +57,7 @@ export function EventsTab({ events, signups }: Props) {
     return (
       <EventEditor
         event={null}
+        organizers={organizers}
         onCancel={() => setMode({ kind: "list" })}
         onSaved={(id) => {
           refresh();
@@ -79,6 +81,7 @@ export function EventsTab({ events, signups }: Props) {
     return (
       <EventEditor
         event={e}
+        organizers={organizers}
         onCancel={() => {
           setMode({ kind: "list" });
           refresh();

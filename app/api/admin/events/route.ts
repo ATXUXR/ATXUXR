@@ -21,7 +21,8 @@ const EventInput = z.object({
     .or(z.string().min(1))
     .optional()
     .nullable(),
-  status: z.enum(["open", "closed"]).default("open"),
+  status: z.enum(["open", "closed", "cancelled"]).default("open"),
+  host_id: z.string().uuid().optional().nullable(),
 });
 
 async function requireAdmin() {
@@ -93,6 +94,7 @@ export async function POST(req: NextRequest) {
       starts_at: startsIso,
       ends_at: endsIso,
       status: data.status,
+      host_id: data.host_id || null,
       slug: slugBase || null,
     })
     .select("id, slug")

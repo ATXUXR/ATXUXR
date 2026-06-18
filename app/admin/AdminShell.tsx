@@ -139,7 +139,11 @@ export function AdminShell({ bundle, tab, meId, days }: Props) {
         >
           {tab === "submissions" && <SubmissionsTab posts={bundle.pending} />}
           {tab === "events" && (
-            <EventsTab events={bundle.eventsFull} signups={bundle.signups} />
+            <EventsTab
+              events={bundle.eventsFull}
+              signups={bundle.signups}
+              organizers={bundle.members.filter((m) => m.admin)}
+            />
           )}
           {tab === "members" && (
             <MembersTab members={bundle.members} meId={meId} />

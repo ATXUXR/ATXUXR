@@ -154,7 +154,34 @@ export function RSVPCard({ event, open }: Props) {
       </div>
 
       <div style={{ padding: 22 }}>
-        {!open ? (
+        {event.status === "cancelled" ? (
+          <div style={{ textAlign: "center", padding: "14px 6px" }}>
+            <span
+              style={{
+                display: "inline-grid",
+                placeItems: "center",
+                width: 52,
+                height: 52,
+                borderRadius: "50%",
+                background: "var(--surface-sunk)",
+                color: "var(--danger, #C8442B)",
+                marginBottom: 14,
+              }}
+            >
+              <Icon name="calendar-x" size={26} />
+            </span>
+            <h4 style={{ fontSize: 19, margin: "0 0 6px" }}>This event was cancelled</h4>
+            <p
+              style={{
+                fontSize: 14,
+                color: "var(--fg-muted)",
+                margin: "0 0 18px",
+              }}
+            >
+              Sorry about that — keep an eye on the events page for the next one.
+            </p>
+          </div>
+        ) : !open ? (
           <div style={{ textAlign: "center", padding: "14px 6px" }}>
             <span
               style={{
