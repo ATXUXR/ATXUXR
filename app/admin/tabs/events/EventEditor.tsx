@@ -134,7 +134,23 @@ export function EventEditor({
       });
       if (!res.ok) {
         const data = await res.json().catch(() => null);
-        throw new Error(data?.error || "Save failed");
+        // The API returns Zod `issues[]` for validation errors — surface the
+        // first one (path + message) so the admin can see what's wrong instead
+        // of a generic "Invalid input".
+        type Issue = { path?: (string | number)[]; message?: string };
+        const issues = Array.isArray(data?.issues)
+          ? (data.issues as Issue[])
+          : [];
+        const detail = issues
+          .slice(0, 3)
+          .map(
+            (i) =>
+              `${i.path?.join(".") || "?"}: ${i.message || "invalid"}`,
+          )
+          .join("; ");
+        throw new Error(
+          detail ? `${data?.error || "Save failed"} — ${detail}` : data?.error || "Save failed",
+        );
       }
       const data = await res.json();
       setSavedAt(Date.now());
