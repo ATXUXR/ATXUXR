@@ -12,12 +12,15 @@ import { FeedbackTab } from "./tabs/FeedbackTab";
 import { EmailTab } from "./tabs/EmailTab";
 import { EventsTab } from "./tabs/EventsTab";
 import { ShareTab } from "./tabs/ShareTab";
+import { CalendarTab } from "./tabs/CalendarTab";
 import { AnalyticsTab } from "./tabs/AnalyticsTab";
+import type { CalendarRow } from "@/lib/content-calendar";
 
 type TabKey =
   | "submissions"
   | "events"
   | "share"
+  | "calendar"
   | "members"
   | "signups"
   | "rsvps"
@@ -31,14 +34,16 @@ interface Props {
   tab: TabKey;
   meId: string;
   days: number;
+  calendar: CalendarRow[];
 }
 
-export function AdminShell({ bundle, tab, meId, days }: Props) {
+export function AdminShell({ bundle, tab, meId, days, calendar }: Props) {
   const params = useSearchParams();
 
   const tabs: Array<{ key: TabKey; label: string; count?: number }> = [
     { key: "submissions", label: "Submissions", count: bundle.pending.length },
     { key: "events", label: "Events", count: bundle.eventsFull.length },
+    { key: "calendar", label: "Calendar", count: calendar.length },
     { key: "share", label: "Share" },
     { key: "members", label: "Members", count: bundle.members.length },
     { key: "signups", label: "Sign-ups", count: bundle.signups.length },
@@ -156,6 +161,7 @@ export function AdminShell({ bundle, tab, meId, days }: Props) {
               socialPosts={bundle.socialPosts}
             />
           )}
+          {tab === "calendar" && <CalendarTab rows={calendar} />}
           {tab === "members" && (
             <MembersTab members={bundle.members} meId={meId} />
           )}

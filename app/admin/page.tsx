@@ -4,6 +4,7 @@ import { Btn } from "@/components/ui/Button";
 import { Icon } from "@/components/ui/Icon";
 import { Eyebrow } from "@/components/ui/Eyebrow";
 import { getAdminBundle } from "@/lib/admin";
+import { getCalendar } from "@/lib/content-calendar-server";
 import { AdminShell } from "./AdminShell";
 
 export const metadata = { title: "Admin" };
@@ -18,6 +19,7 @@ export default async function AdminPage({ searchParams }: PageProps) {
     | "submissions"
     | "events"
     | "share"
+    | "calendar"
     | "members"
     | "signups"
     | "rsvps"
@@ -60,7 +62,10 @@ export default async function AdminPage({ searchParams }: PageProps) {
     );
   }
 
-  const bundle = await getAdminBundle({ analyticsDays: days });
+  const [bundle, calendar] = await Promise.all([
+    getAdminBundle({ analyticsDays: days }),
+    getCalendar(),
+  ]);
   if (!bundle) {
     return (
       <NotAdmin
@@ -129,7 +134,13 @@ export default async function AdminPage({ searchParams }: PageProps) {
         </div>
       </section>
 
-      <AdminShell bundle={bundle} tab={tab} meId={me.id} days={days} />
+      <AdminShell
+        bundle={bundle}
+        tab={tab}
+        meId={me.id}
+        days={days}
+        calendar={calendar}
+      />
     </>
   );
 }
