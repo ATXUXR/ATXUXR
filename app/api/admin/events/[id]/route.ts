@@ -13,7 +13,8 @@ const EventPatch = z.object({
   where_: z.string().max(280).optional(),
   address: z.string().max(280).optional().nullable(),
   online_url: z.string().url().max(500).optional().nullable(),
-  image: z.string().url().max(500).optional().nullable(),
+  // Image can be a full URL OR a relative path like /assets/skyline.png.
+  image: z.string().max(500).optional().nullable(),
   starts_at: z
     .string()
     .datetime({ offset: true })
