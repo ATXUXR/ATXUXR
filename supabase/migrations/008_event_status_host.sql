@@ -2,18 +2,21 @@
 -- Events: add 'cancelled' status + host_id reference to an admin member.
 -- =============================================================
 
--- Drop the old check constraint and add the new one that allows 'cancelled'.
+-- Drop every CHECK constraint that mentions the status column, then add the
+-- new one. Idempotent — safe to rerun.
 do $$
 declare
   cname text;
 begin
-  select conname into cname
-  from pg_constraint
-  where conrelid = 'public.events'::regclass
-    and pg_get_constraintdef(oid) ilike '%status%check%';
-  if cname is not null then
+  for cname in
+    select conname
+    from pg_constraint
+    where conrelid = 'public.events'::regclass
+      and contype = 'c'
+      and pg_get_constraintdef(oid) ilike '%status%'
+  loop
     execute format('alter table public.events drop constraint %I', cname);
-  end if;
+  end loop;
 end $$;
 
 alter table public.events

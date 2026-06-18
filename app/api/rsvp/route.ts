@@ -233,41 +233,69 @@ export async function POST(request: Request) {
   }
 
   // Send confirmation via Resend. Best-effort — failure doesn't fail the RSVP.
+  // Every attempt — success OR failure — is logged to the `emails` table so
+  // the admin Email Log shows what happened and why.
   const resend = getResend();
-  if (resend) {
+  const subject = `You're in for ${effective.title}`;
+  if (!resend) {
+    console.warn("[rsvp] RESEND_API_KEY is not set — skipping send");
+    await supabase.from("emails").insert({
+      to_address: email,
+      subject,
+      body: "RESEND_API_KEY missing on the server — email not attempted.",
+      status: "failed",
+    });
+  } else {
+    const unsubscribeUrl = signup?.unsubscribe_token
+      ? `${SITE_URL}/unsubscribe?token=${encodeURIComponent(signup.unsubscribe_token)}`
+      : `${SITE_URL}/unsubscribe`;
+    const calEvent = buildCalendarEvent(effective);
+    const html = rsvpConfirmationHtml(calEvent, name, unsubscribeUrl);
     try {
-      const unsubscribeUrl = signup?.unsubscribe_token
-        ? `${SITE_URL}/unsubscribe?token=${encodeURIComponent(signup.unsubscribe_token)}`
-        : `${SITE_URL}/unsubscribe`;
-      const calEvent = buildCalendarEvent(effective);
-      const html = rsvpConfirmationHtml(calEvent, name, unsubscribeUrl);
-      const subject = `You're in for ${effective.title}`;
-      await resend.emails.send({
+      const result = await resend.emails.send({
         from: EMAIL_FROM,
         to: email,
         subject,
         html,
       });
-      // Log the send so it shows up in the admin email log.
-      const { data: emailRow } = await supabase
-        .from("emails")
-        .insert({
+      if (result.error) {
+        // Resend returns a 200 with an `error` field for validation issues
+        // (unverified domain, invalid address, etc.) — surface those.
+        console.warn("[rsvp] resend returned error:", result.error);
+        await supabase.from("emails").insert({
           to_address: email,
           subject,
-          body: html,
-          status: "sent",
-          sent_at: new Date().toISOString(),
-        })
-        .select("id")
-        .single();
-      await supabase.from("email_sends").insert({
-        email_id: emailRow?.id ?? null,
-        signup_id: signup?.id ?? null,
-        to_address: email,
-        campaign: "rsvp-confirmation",
-      });
+          body: `Resend error: ${result.error.message || JSON.stringify(result.error)}`,
+          status: "failed",
+        });
+      } else {
+        const { data: emailRow } = await supabase
+          .from("emails")
+          .insert({
+            to_address: email,
+            subject,
+            body: html,
+            status: "sent",
+            sent_at: new Date().toISOString(),
+          })
+          .select("id")
+          .single();
+        await supabase.from("email_sends").insert({
+          email_id: emailRow?.id ?? null,
+          signup_id: signup?.id ?? null,
+          to_address: email,
+          campaign: "rsvp-confirmation",
+        });
+      }
     } catch (err) {
-      console.warn("[rsvp] email send failed:", err);
+      const msg = err instanceof Error ? err.message : String(err);
+      console.warn("[rsvp] email send threw:", err);
+      await supabase.from("emails").insert({
+        to_address: email,
+        subject,
+        body: `Send threw: ${msg}`,
+        status: "failed",
+      });
     }
   }
 
