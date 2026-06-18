@@ -16,6 +16,7 @@ interface Props {
   events: EventFull[];
   signups: SignupRow[];
   organizers: AdminMember[];
+  members: AdminMember[];
 }
 
 type Mode =
@@ -30,7 +31,7 @@ const KIND_TONE = {
   LEARN: "flame",
 } as const;
 
-export function EventsTab({ events, signups, organizers }: Props) {
+export function EventsTab({ events, signups, organizers, members }: Props) {
   const router = useRouter();
   const [, startTransition] = useTransition();
   const [mode, setMode] = useState<Mode>({ kind: "list" });
@@ -109,6 +110,7 @@ export function EventsTab({ events, signups, organizers }: Props) {
       <InviteComposer
         event={e}
         signups={signups}
+        members={members}
         onCancel={() => setMode({ kind: "edit", id: e.id })}
         onSent={() => {
           refresh();

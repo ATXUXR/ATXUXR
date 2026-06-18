@@ -146,6 +146,7 @@ export function AdminShell({ bundle, tab, meId, days }: Props) {
               events={bundle.eventsFull}
               signups={bundle.signups}
               organizers={bundle.members.filter((m) => m.admin)}
+              members={bundle.members}
             />
           )}
           {tab === "share" && (

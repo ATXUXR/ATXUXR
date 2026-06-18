@@ -1,15 +1,16 @@
 "use client";
 
-import { useMemo, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { Btn } from "@/components/ui/Button";
 import { Icon } from "@/components/ui/Icon";
-import type { EventFull, SignupRow } from "@/lib/admin";
+import type { AdminMember, EventFull, SignupRow } from "@/lib/admin";
 
 type Audience = "all" | "members" | "list" | "tags";
 
 interface Props {
   event: EventFull;
   signups: SignupRow[];
+  members: AdminMember[];
   onSent: () => void;
   onCancel: () => void;
 }
@@ -56,7 +57,13 @@ function escapeHtml(s: string): string {
     .replace(/>/g, "&gt;");
 }
 
-export function InviteComposer({ event, signups, onSent, onCancel }: Props) {
+export function InviteComposer({
+  event,
+  signups,
+  members,
+  onSent,
+  onCancel,
+}: Props) {
   const [subject, setSubject] = useState(`You're invited: ${event.title}`);
   const [body, setBody] = useState(defaultBody(event));
   const [audience, setAudience] = useState<Audience>("list");
@@ -64,6 +71,36 @@ export function InviteComposer({ event, signups, onSent, onCancel }: Props) {
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
+
+  // ----- Live preview (server-rendered, debounced on body changes) ---------
+  const [previewHtml, setPreviewHtml] = useState<string>("");
+  const [previewBusy, setPreviewBusy] = useState(false);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(async () => {
+      setPreviewBusy(true);
+      try {
+        const res = await fetch("/api/admin/event-invite/preview", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            eventId: event.id,
+            html: body,
+            sampleName: "Alex",
+          }),
+        });
+        if (res.ok) setPreviewHtml(await res.text());
+      } catch {
+        /* ignore — keep previous preview */
+      } finally {
+        setPreviewBusy(false);
+      }
+    }, 350);
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+    };
+  }, [body, event.id]);
 
   const tagOptions = useMemo(() => {
     const counts = new Map<string, number>();
@@ -76,22 +113,44 @@ export function InviteComposer({ event, signups, onSent, onCancel }: Props) {
     return Array.from(counts.entries()).sort((a, b) => b[1] - a[1]);
   }, [signups]);
 
-  // Live recipient count from the signups data (members count is server-side
-  // only — show "(server-computed)" for that audience).
-  const liveCount = useMemo(() => {
+  // Per-audience recipient counts so each pill shows how many people it
+  // targets. Members come from the `members` table; signups from the mailing
+  // list. "all" is the de-duped union (by email).
+  const counts = useMemo(() => {
     const isSubscribed = (s: SignupRow) =>
-      !(s.tags || []).includes("unsubscribed");
-    if (audience === "list") return signups.filter(isSubscribed).length;
+      !(s.tags || []).includes("unsubscribed") && !s.unsubscribed;
+    const subscribedSignups = signups.filter(isSubscribed);
+    const memberEmails = new Set(
+      members.map((m) => m.email?.toLowerCase()).filter(Boolean) as string[],
+    );
+    const signupEmails = new Set(
+      subscribedSignups.map((s) => s.email.toLowerCase()),
+    );
+    // Union by email
+    const allEmails = new Set([...memberEmails, ...signupEmails]);
+    return {
+      all: allEmails.size,
+      members: members.length,
+      list: subscribedSignups.length,
+    };
+  }, [signups, members]);
+
+  // The currently-selected audience's count, used for the inline summary line.
+  const liveCount = useMemo(() => {
+    if (audience === "all") return counts.all;
+    if (audience === "members") return counts.members;
+    if (audience === "list") return counts.list;
     if (audience === "tags") {
       if (selectedTags.size === 0) return 0;
       return signups.filter(
         (s) =>
-          isSubscribed(s) &&
+          !(s.tags || []).includes("unsubscribed") &&
+          !s.unsubscribed &&
           (s.tags || []).some((t) => selectedTags.has(t)),
       ).length;
     }
     return null;
-  }, [signups, audience, selectedTags]);
+  }, [audience, counts, signups, selectedTags]);
 
   const toggleTag = (t: string) =>
     setSelectedTags((prev) => {
@@ -189,12 +248,12 @@ export function InviteComposer({ event, signups, onSent, onCancel }: Props) {
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
             {(
               [
-                ["all", "Everyone"],
-                ["members", "Members"],
-                ["list", "Mailing list"],
-                ["tags", "By tag"],
+                ["all", "Everyone", counts.all],
+                ["members", "Members", counts.members],
+                ["list", "Mailing list", counts.list],
+                ["tags", "By tag", null],
               ] as const
-            ).map(([k, l]) => {
+            ).map(([k, l, n]) => {
               const on = audience === k;
               return (
                 <button
@@ -202,6 +261,9 @@ export function InviteComposer({ event, signups, onSent, onCancel }: Props) {
                   key={k}
                   onClick={() => setAudience(k)}
                   style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 7,
                     cursor: "pointer",
                     fontSize: 13,
                     fontWeight: 600,
@@ -215,6 +277,22 @@ export function InviteComposer({ event, signups, onSent, onCancel }: Props) {
                   }}
                 >
                   {l}
+                  {n !== null && (
+                    <span
+                      style={{
+                        fontSize: 11.5,
+                        fontWeight: 700,
+                        padding: "1px 7px",
+                        borderRadius: 999,
+                        background: on
+                          ? "rgba(255,255,255,0.22)"
+                          : "var(--surface-sunk)",
+                        color: on ? "#fff" : "var(--fg-subtle)",
+                      }}
+                    >
+                      {n}
+                    </span>
+                  )}
                 </button>
               );
             })}
@@ -307,20 +385,89 @@ export function InviteComposer({ event, signups, onSent, onCancel }: Props) {
         </div>
 
         <div>
-          <label style={labelStyle}>Body (HTML)</label>
-          <textarea
+          <div
             style={{
-              ...fieldStyle,
-              resize: "vertical",
-              minHeight: 180,
-              fontFamily: "var(--font-mono)",
-              fontSize: 13.5,
-              lineHeight: 1.55,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              marginBottom: 6,
+              gap: 8,
             }}
-            value={body}
-            onChange={(e) => setBody(e.target.value)}
-            required
-          />
+          >
+            <label style={{ ...labelStyle, marginBottom: 0 }}>
+              Body (HTML)
+            </label>
+            <span
+              style={{
+                fontSize: 11.5,
+                color: "var(--fg-subtle)",
+                fontFamily: "var(--font-mono)",
+                letterSpacing: "0.04em",
+                textTransform: "uppercase",
+              }}
+            >
+              {previewBusy ? "Updating preview…" : "Live preview →"}
+            </span>
+          </div>
+          <div
+            className="invite-grid"
+            style={{
+              display: "grid",
+              gridTemplateColumns: "1fr 1fr",
+              gap: 14,
+              alignItems: "stretch",
+            }}
+          >
+            <textarea
+              style={{
+                ...fieldStyle,
+                resize: "vertical",
+                minHeight: 380,
+                fontFamily: "var(--font-mono)",
+                fontSize: 13.5,
+                lineHeight: 1.55,
+              }}
+              value={body}
+              onChange={(e) => setBody(e.target.value)}
+              required
+            />
+            <div
+              style={{
+                borderRadius: "var(--radius-md)",
+                border: "1.5px solid var(--border-strong)",
+                background: "#F7F2EC",
+                minHeight: 380,
+                overflow: "hidden",
+                position: "relative",
+              }}
+            >
+              {previewHtml ? (
+                <iframe
+                  title="Email preview"
+                  srcDoc={previewHtml}
+                  sandbox=""
+                  style={{
+                    width: "100%",
+                    height: "100%",
+                    minHeight: 380,
+                    border: 0,
+                    display: "block",
+                  }}
+                />
+              ) : (
+                <div
+                  style={{
+                    padding: 20,
+                    color: "var(--fg-muted)",
+                    fontSize: 13,
+                    textAlign: "center",
+                  }}
+                >
+                  Generating preview…
+                </div>
+              )}
+            </div>
+          </div>
           <div
             style={{
               marginTop: 6,
@@ -328,9 +475,16 @@ export function InviteComposer({ event, signups, onSent, onCancel }: Props) {
               color: "var(--fg-subtle)",
             }}
           >
-            Use <code>{`{{name}}`}</code> as a placeholder for each recipient's first name.
-            The RSVP CTA, event facts, and unsubscribe footer are added automatically.
+            Use <code>{`{{name}}`}</code> as a placeholder for each recipient&apos;s
+            first name. The RSVP CTA, event facts, and unsubscribe footer are
+            added automatically — the preview on the right shows the final
+            rendered email a recipient will see (sample name: <em>Alex</em>).
           </div>
+          <style>{`
+            @media (max-width: 800px) {
+              .invite-grid { grid-template-columns: 1fr !important; }
+            }
+          `}</style>
         </div>
 
         <label
