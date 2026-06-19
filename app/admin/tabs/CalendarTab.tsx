@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { Btn } from "@/components/ui/Button";
 import { Icon } from "@/components/ui/Icon";
@@ -50,6 +50,8 @@ const DRAFT_DOT: Record<DraftStatus, string> = {
 export function CalendarTab({ rows }: Props) {
   const [open, setOpen] = useState<string | null>(null);
   const [shareContent, setShareContent] = useState<ShareContent | null>(null);
+  const [showNewPost, setShowNewPost] = useState(false);
+  const router = useRouter();
 
   const grouped = useMemo(() => {
     const out = new Map<string, CalendarRow[]>();
@@ -82,6 +84,12 @@ export function CalendarTab({ rows }: Props) {
           (series openers / closers / pillar opens) also publish to Medium +
           Instagram.
         </div>
+        <Btn
+          icon="plus"
+          onClick={() => setShowNewPost(true)}
+        >
+          New post
+        </Btn>
       </div>
 
       {grouped.map(([pillar, items]) => (
@@ -127,6 +135,16 @@ export function CalendarTab({ rows }: Props) {
         open={shareContent !== null}
         onClose={() => setShareContent(null)}
       />
+
+      {showNewPost && (
+        <NewPostForm
+          onClose={() => setShowNewPost(false)}
+          onCreated={() => {
+            setShowNewPost(false);
+            router.refresh();
+          }}
+        />
+      )}
     </div>
   );
 }
@@ -223,25 +241,27 @@ function Row({
       <Btn variant="ghost" size="sm" icon="edit-3" onClick={onOpen}>
         Edit
       </Btn>
-      <Btn
-        variant="ghost"
-        size="sm"
-        icon="share-2"
-        onClick={() =>
-          onShare({
-            kind: "blog",
-            title: p.anchor_title,
-            body:
-              row.drafts.find((d) => d.channel === "slack")?.body_md ||
-              p.notes ||
-              "",
-            url: `https://atxuxr.com/blog`,
-            meta: date !== "—" ? date : undefined,
-          })
-        }
-      >
-        Share
-      </Btn>
+      {p.status === "published" && (
+        <Btn
+          variant="ghost"
+          size="sm"
+          icon="share-2"
+          onClick={() =>
+            onShare({
+              kind: "blog",
+              title: p.anchor_title,
+              body:
+                row.drafts.find((d) => d.channel === "slack")?.body_md ||
+                p.notes ||
+                "",
+              url: `https://atxuxr.com/blog`,
+              meta: date !== "—" ? date : undefined,
+            })
+          }
+        >
+          Share
+        </Btn>
+      )}
     </div>
   );
 }
@@ -297,11 +317,13 @@ function PostDrawer({
   );
   const [err, setErr] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [publishing, setPublishing] = useState(false);
 
   const savePost = async (patch: Partial<CalendarPost>) => {
     setSaving(true);
     setErr(null);
-    setPost({ ...post, ...patch });
+    const newPost = { ...post, ...patch };
+    setPost(newPost);
     try {
       const res = await fetch(`/api/admin/calendar/${post.id}`, {
         method: "PATCH",
@@ -311,6 +333,18 @@ function PostDrawer({
       if (!res.ok) {
         const d = await res.json().catch(() => ({}));
         throw new Error(d?.error || "Save failed");
+      }
+      // If marquee changed, sync drafts
+      if (patch.marquee !== undefined && patch.marquee !== post.marquee) {
+        const res2 = await fetch(`/api/admin/calendar/${post.id}/sync-drafts`, {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ marquee: patch.marquee }),
+        });
+        if (res2.ok) {
+          const { drafts: newDrafts } = await res2.json();
+          setDrafts(newDrafts || drafts);
+        }
       }
     } catch (e) {
       setErr(e instanceof Error ? e.message : "Save failed");
@@ -345,6 +379,30 @@ function PostDrawer({
   const closeAndRefresh = () => {
     router.refresh();
     onClose();
+  };
+
+  const handlePublishNow = async () => {
+    setPublishing(true);
+    setErr(null);
+    try {
+      const res = await fetch(`/api/admin/calendar/${post.id}/publish`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+      });
+      if (!res.ok) {
+        const d = await res.json().catch(() => ({}));
+        throw new Error(d?.error || "Publish failed");
+      }
+      const { url } = await res.json();
+      setErr(null);
+      closeAndRefresh();
+      // Show success toast/notification
+      alert(`Published! View at: ${url}`);
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : "Publish failed");
+    } finally {
+      setPublishing(false);
+    }
   };
 
   const draft = drafts.find((d) => d.channel === activeChannel);
@@ -450,6 +508,16 @@ function PostDrawer({
                   value={post.scheduled_date || ""}
                   onChange={(e) =>
                     savePost({ scheduled_date: e.target.value || null })
+                  }
+                />
+              </Field>
+              <Field label="Publish time (CT)">
+                <input
+                  type="time"
+                  style={inputStyle}
+                  value={post.scheduled_time || ""}
+                  onChange={(e) =>
+                    savePost({ scheduled_time: e.target.value || null })
                   }
                 />
               </Field>
@@ -612,6 +680,30 @@ function PostDrawer({
             )}
           </Section>
 
+          {post.status !== "published" && (
+            <Section title="Publishing">
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                <Btn
+                  onClick={handlePublishNow}
+                  disabled={publishing}
+                  icon="send"
+                >
+                  {publishing ? "Publishing…" : "Publish now"}
+                </Btn>
+                <div
+                  style={{
+                    fontSize: 12,
+                    color: "var(--fg-subtle)",
+                    flex: 1,
+                    alignSelf: "center",
+                  }}
+                >
+                  Create blog post and mark as published immediately
+                </div>
+              </div>
+            </Section>
+          )}
+
           <div
             style={{
               fontSize: 12,
@@ -639,6 +731,64 @@ function DraftEditor({
   const [prompt, setPrompt] = useState(draft.image_prompt || "");
   const [imgUrl, setImgUrl] = useState(draft.image_url || "");
   const [notes, setNotes] = useState(draft.notes || "");
+  const [uploading, setUploading] = useState(false);
+  const [uploadErr, setUploadErr] = useState<string | null>(null);
+  const [generating, setGenerating] = useState(false);
+
+  const handleImageUpload = async (file: File) => {
+    setUploading(true);
+    setUploadErr(null);
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("draftId", draft.id);
+      const res = await fetch("/api/admin/calendar/upload-image", {
+        method: "POST",
+        body: formData,
+      });
+      if (!res.ok) {
+        const d = await res.json().catch(() => ({}));
+        throw new Error(d?.error || "Upload failed");
+      }
+      const { url } = await res.json();
+      setImgUrl(url);
+      onChange({ image_url: url });
+    } catch (e) {
+      setUploadErr(e instanceof Error ? e.message : "Upload failed");
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleGenerateImage = async () => {
+    if (!prompt.trim()) {
+      setUploadErr("Image prompt is required");
+      return;
+    }
+    setGenerating(true);
+    setUploadErr(null);
+    try {
+      const res = await fetch("/api/admin/calendar/generate-image", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          prompt,
+          draftId: draft.id,
+        }),
+      });
+      if (!res.ok) {
+        const d = await res.json().catch(() => ({}));
+        throw new Error(d?.error || "Generation failed");
+      }
+      const { url } = await res.json();
+      setImgUrl(url);
+      onChange({ image_url: url });
+    } catch (e) {
+      setUploadErr(e instanceof Error ? e.message : "Generation failed");
+    } finally {
+      setGenerating(false);
+    }
+  };
 
   return (
     <div style={{ display: "grid", gap: 14 }}>
@@ -682,15 +832,81 @@ function DraftEditor({
           onChange={(e) => setPrompt(e.target.value)}
           onBlur={() => onChange({ image_prompt: prompt })}
         />
+        <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+          <Btn
+            variant="secondary"
+            size="sm"
+            onClick={handleGenerateImage}
+            disabled={generating || uploading}
+            icon="sparkles"
+          >
+            {generating ? "Generating…" : "Auto-generate image"}
+          </Btn>
+          <div style={{ fontSize: 11, color: "var(--fg-subtle)", alignSelf: "center" }}>
+            AI image generation via Replicate
+          </div>
+        </div>
       </Field>
-      <Field label="Image URL (once you've generated/uploaded the visual)" full>
-        <input
-          style={inputStyle}
-          value={imgUrl}
-          onChange={(e) => setImgUrl(e.target.value)}
-          onBlur={() => onChange({ image_url: imgUrl })}
-          placeholder="https://…"
-        />
+      <Field label="Image (upload file or paste URL)" full>
+        <div style={{ display: "grid", gap: 10 }}>
+          {uploadErr && (
+            <div
+              style={{
+                background: "var(--danger-bg)",
+                color: "var(--danger)",
+                padding: "8px 12px",
+                borderRadius: "var(--radius-md)",
+                fontSize: 12,
+              }}
+            >
+              {uploadErr}
+            </div>
+          )}
+          <div
+            style={{
+              display: "flex",
+              gap: 10,
+              alignItems: "center",
+            }}
+          >
+            <input
+              type="file"
+              accept="image/*"
+              disabled={uploading}
+              onChange={(e) => {
+                const file = e.currentTarget.files?.[0];
+                if (file) handleImageUpload(file);
+              }}
+              style={{
+                flex: 1,
+              }}
+            />
+            {uploading && <span style={{ fontSize: 12, color: "var(--fg-muted)" }}>Uploading…</span>}
+          </div>
+          <div style={{ fontSize: 12, color: "var(--fg-subtle)" }}>or paste URL:</div>
+          <input
+            style={inputStyle}
+            value={imgUrl}
+            onChange={(e) => setImgUrl(e.target.value)}
+            onBlur={() => onChange({ image_url: imgUrl })}
+            placeholder="https://…"
+          />
+          {imgUrl && (
+            <div
+              style={{
+                maxWidth: 200,
+                borderRadius: "var(--radius-md)",
+                overflow: "hidden",
+              }}
+            >
+              <img
+                src={imgUrl}
+                alt="Preview"
+                style={{ width: "100%", height: "auto", display: "block" }}
+              />
+            </div>
+          )}
+        </div>
       </Field>
       <Field label="Notes for this channel" full>
         <textarea
@@ -763,6 +979,193 @@ function Field({
         {label}
       </label>
       {children}
+    </div>
+  );
+}
+
+function NewPostForm({
+  onClose,
+  onCreated,
+}: {
+  onClose: () => void;
+  onCreated: () => void;
+}) {
+  const [pillar, setPillar] = useState<Pillar>("Probabilistic User Research");
+  const [postType, setPostType] = useState<PostType>("original");
+  const [title, setTitle] = useState("");
+  const [date, setDate] = useState("");
+  const [marquee, setMarquee] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+
+  const handleCreate = async () => {
+    if (!title.trim()) {
+      setErr("Title is required");
+      return;
+    }
+    setLoading(true);
+    setErr(null);
+    try {
+      const res = await fetch("/api/admin/calendar", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          pillar,
+          post_type: postType,
+          anchor_title: title,
+          scheduled_date: date || null,
+          marquee,
+        }),
+      });
+      if (!res.ok) {
+        const d = await res.json().catch(() => ({}));
+        throw new Error(d?.error || "Creation failed");
+      }
+      onCreated();
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : "Creation failed");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div
+      role="dialog"
+      aria-modal="true"
+      onClick={onClose}
+      style={{
+        position: "fixed",
+        inset: 0,
+        background: "rgba(33,30,34,0.5)",
+        zIndex: 9999,
+        display: "flex",
+        justifyContent: "flex-end",
+      }}
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          background: "var(--bg)",
+          width: "min(600px, 100%)",
+          height: "100%",
+          overflowY: "auto",
+          boxShadow: "-24px 0 64px rgba(0,0,0,0.18)",
+        }}
+      >
+        <div
+          style={{
+            position: "sticky",
+            top: 0,
+            background: "var(--bg)",
+            borderBottom: "1px solid var(--border)",
+            padding: "16px 24px",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            zIndex: 2,
+          }}
+        >
+          <div style={{ fontSize: 18, fontWeight: 700 }}>New calendar post</div>
+          <Btn variant="ghost" icon="x" onClick={onClose}>
+            Close
+          </Btn>
+        </div>
+
+        <div style={{ padding: 24 }}>
+          {err && (
+            <div
+              style={{
+                background: "var(--danger-bg)",
+                color: "var(--danger)",
+                padding: "8px 12px",
+                borderRadius: "var(--radius-md)",
+                fontSize: 13.5,
+                marginBottom: 14,
+              }}
+            >
+              {err}
+            </div>
+          )}
+
+          <div style={{ display: "grid", gap: 14 }}>
+            <Field label="Title">
+              <input
+                style={inputStyle}
+                value={title}
+                placeholder="Anchor title for this post"
+                onChange={(e) => setTitle(e.target.value)}
+              />
+            </Field>
+
+            <Field label="Pillar">
+              <select
+                style={inputStyle}
+                value={pillar}
+                onChange={(e) => setPillar(e.target.value as Pillar)}
+              >
+                {PILLARS.map((p) => (
+                  <option key={p}>{p}</option>
+                ))}
+              </select>
+            </Field>
+
+            <Field label="Post type">
+              <select
+                style={inputStyle}
+                value={postType}
+                onChange={(e) => setPostType(e.target.value as PostType)}
+              >
+                {Object.entries(POST_TYPE_LABELS).map(([k, l]) => (
+                  <option key={k} value={k}>
+                    {l}
+                  </option>
+                ))}
+              </select>
+            </Field>
+
+            <Field label="Scheduled date">
+              <input
+                type="date"
+                style={inputStyle}
+                value={date}
+                onChange={(e) => setDate(e.target.value)}
+              />
+            </Field>
+
+            <Field label="Marquee (5 channels vs 3)">
+              <label
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 8,
+                  fontSize: 14,
+                  paddingTop: 8,
+                }}
+              >
+                <input
+                  type="checkbox"
+                  checked={marquee}
+                  onChange={(e) => setMarquee(e.target.checked)}
+                />
+                Marquee piece (unlocks Medium + Instagram)
+              </label>
+            </Field>
+
+            <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
+              <Btn
+                onClick={handleCreate}
+                disabled={loading || !title.trim()}
+              >
+                {loading ? "Creating…" : "Create"}
+              </Btn>
+              <Btn variant="secondary" onClick={onClose}>
+                Cancel
+              </Btn>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

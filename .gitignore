@@ -25,3 +25,5 @@ out/
 # IDE
 .idea/
 .vscode/
+google-credentials.json
+google-credentials.json

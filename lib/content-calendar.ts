@@ -64,6 +64,7 @@ export interface CalendarPost {
   post_type: PostType;
   anchor_title: string;
   scheduled_date: string | null;
+  scheduled_time: string | null;
   marquee: boolean;
   status: CalendarStatus;
   source_files: string[] | null;

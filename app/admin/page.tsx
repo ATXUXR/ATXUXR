@@ -20,6 +20,7 @@ export default async function AdminPage({ searchParams }: PageProps) {
     | "events"
     | "share"
     | "calendar"
+    | "blog-submissions"
     | "members"
     | "signups"
     | "rsvps"
@@ -62,9 +63,13 @@ export default async function AdminPage({ searchParams }: PageProps) {
     );
   }
 
-  const [bundle, calendar] = await Promise.all([
+  const [bundle, calendar, { data: blogSubmissions }] = await Promise.all([
     getAdminBundle({ analyticsDays: days }),
     getCalendar(),
+    supabase
+      .from("blog_submissions")
+      .select("*")
+      .order("submitted_at", { ascending: false }),
   ]);
   if (!bundle) {
     return (
@@ -140,6 +145,7 @@ export default async function AdminPage({ searchParams }: PageProps) {
         meId={me.id}
         days={days}
         calendar={calendar}
+        blogSubmissions={blogSubmissions || []}
       />
     </>
   );
