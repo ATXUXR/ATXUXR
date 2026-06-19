@@ -1,16 +1,17 @@
 "use client";
 
+import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
-import { useMemo, useState, useTransition, type FormEvent } from "react";
 import { Btn } from "@/components/ui/Button";
 import { Icon } from "@/components/ui/Icon";
 import { Tag } from "@/components/ui/Tag";
 import { formatDate } from "@/lib/utils";
-import type { EmailRow, SignupRow } from "@/lib/admin";
+import type { AdminMember, EmailRow, SignupRow } from "@/lib/admin";
 
 interface Props {
   emails: EmailRow[];
   signups?: SignupRow[];
+  members?: AdminMember[];
 }
 
 type Audience = "all" | "members" | "list" | "tags";
@@ -27,9 +28,8 @@ const fieldStyle: React.CSSProperties = {
   boxSizing: "border-box",
 };
 
-export function EmailTab({ emails, signups = [] }: Props) {
+export function EmailTab({ emails, signups = [], members = [] }: Props) {
   const router = useRouter();
-  const [, startTransition] = useTransition();
   const [subject, setSubject] = useState("");
   const [body, setBody] = useState("");
   const [audience, setAudience] = useState<Audience>("all");
@@ -37,24 +37,79 @@ export function EmailTab({ emails, signups = [] }: Props) {
   const [msg, setMsg] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [previewHtml, setPreviewHtml] = useState<string>("");
+  const [previewBusy, setPreviewBusy] = useState(false);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const tagOptions = useMemo(() => {
     const counts = new Map<string, number>();
-    signups.forEach((s) =>
-      (s.tags || []).forEach((t) =>
-        counts.set(t, (counts.get(t) || 0) + 1),
-      ),
-    );
+    signups.forEach((s) => {
+      if ((s.tags || []).includes("unsubscribed") || s.unsubscribed) return;
+      (s.tags || []).forEach((t) => counts.set(t, (counts.get(t) || 0) + 1));
+    });
     return Array.from(counts.entries()).sort((a, b) => b[1] - a[1]);
   }, [signups]);
 
-  // Estimate how many people will be hit by the current tag selection.
+  // Per-audience counts (deduped by email for 'all').
+  const counts = useMemo(() => {
+    const isSubscribed = (s: SignupRow) =>
+      !(s.tags || []).includes("unsubscribed") && !s.unsubscribed;
+    const subscribedSignups = signups.filter(isSubscribed);
+    const memberEmails = new Set(
+      members.map((m) => m.email?.toLowerCase()).filter(Boolean) as string[],
+    );
+    const signupEmails = new Set(
+      subscribedSignups.map((s) => s.email.toLowerCase()),
+    );
+    const allEmails = new Set([...memberEmails, ...signupEmails]);
+    return {
+      all: allEmails.size,
+      members: members.length,
+      list: subscribedSignups.length,
+    };
+  }, [signups, members]);
+
   const tagEstimate = useMemo(() => {
     if (audience !== "tags" || selectedTags.size === 0) return 0;
-    return signups.filter((s) =>
-      (s.tags || []).some((t) => selectedTags.has(t)),
+    return signups.filter(
+      (s) =>
+        !(s.tags || []).includes("unsubscribed") &&
+        !s.unsubscribed &&
+        (s.tags || []).some((t) => selectedTags.has(t)),
     ).length;
   }, [signups, audience, selectedTags]);
+
+  const audienceCount =
+    audience === "all"
+      ? counts.all
+      : audience === "members"
+        ? counts.members
+        : audience === "list"
+          ? counts.list
+          : tagEstimate;
+
+  // Live preview (server-rendered, debounced).
+  useEffect(() => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(async () => {
+      setPreviewBusy(true);
+      try {
+        const res = await fetch("/api/admin/emails/preview", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ subject, body }),
+        });
+        if (res.ok) setPreviewHtml(await res.text());
+      } catch {
+        /* keep previous */
+      } finally {
+        setPreviewBusy(false);
+      }
+    }, 350);
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+    };
+  }, [subject, body]);
 
   const toggleTag = (t: string) =>
     setSelectedTags((prev) => {
@@ -69,6 +124,13 @@ export function EmailTab({ emails, signups = [] }: Props) {
     if (!subject.trim() || !body.trim()) return;
     if (audience === "tags" && selectedTags.size === 0) {
       setErr("Pick at least one tag");
+      return;
+    }
+    if (
+      !confirm(
+        `Send to ${audienceCount} recipient${audienceCount === 1 ? "" : "s"}? This sends real email.`,
+      )
+    ) {
       return;
     }
     setErr(null);
@@ -87,34 +149,23 @@ export function EmailTab({ emails, signups = [] }: Props) {
       });
       if (!res.ok) {
         const data = await res.json().catch(() => null);
-        throw new Error(data?.error || "Failed to queue email");
+        throw new Error(data?.error || "Failed to send");
       }
       const data = await res.json();
-      setMsg(
-        `Queued for ${data.recipientCount} recipient${
-          data.recipientCount === 1 ? "" : "s"
-        } (delivery not wired up yet).`,
-      );
+      const failedStr = data.failed ? ` · ${data.failed} failed` : "";
+      setMsg(`Sent to ${data.sent} of ${data.recipientCount}${failedStr}.`);
       setSubject("");
       setBody("");
-      setTimeout(() => setMsg(null), 6000);
-      startTransition(() => router.refresh());
+      router.refresh();
     } catch (e) {
-      setErr(e instanceof Error ? e.message : "Failed to queue email");
+      setErr(e instanceof Error ? e.message : "Failed to send");
     } finally {
       setSubmitting(false);
     }
   };
 
   return (
-    <div
-      style={{
-        display: "grid",
-        gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))",
-        gap: 22,
-        alignItems: "start",
-      }}
-    >
+    <div style={{ display: "grid", gap: 22 }}>
       <div
         style={{
           background: "var(--surface)",
@@ -124,43 +175,25 @@ export function EmailTab({ emails, signups = [] }: Props) {
           boxShadow: "var(--shadow-sm)",
         }}
       >
-        <h3 style={{ fontSize: 18, margin: "0 0 4px" }}>
-          Compose an email blast
-        </h3>
-        <p
-          style={{
-            fontSize: 13.5,
-            color: "var(--fg-muted)",
-            margin: "0 0 18px",
-          }}
-        >
-          Write a message — it&apos;s queued in the outbox. Delivery wiring lands
-          in Phase 3.
+        <h3 style={{ fontSize: 18, margin: "0 0 4px" }}>Compose an email blast</h3>
+        <p style={{ fontSize: 13.5, color: "var(--fg-muted)", margin: "0 0 18px" }}>
+          Renders through the ATX UXR email shell + List-Unsubscribe headers.
+          Sends via Resend immediately on submit — no queue.
         </p>
-        <form
-          onSubmit={send}
-          style={{ display: "flex", flexDirection: "column", gap: 14 }}
-        >
+        <form onSubmit={send} style={{ display: "flex", flexDirection: "column", gap: 14 }}>
           <div>
-            <label
-              style={{
-                display: "block",
-                fontWeight: 600,
-                fontSize: 13.5,
-                marginBottom: 6,
-              }}
-            >
+            <label style={{ display: "block", fontWeight: 600, fontSize: 13.5, marginBottom: 6 }}>
               Audience
             </label>
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
               {(
                 [
-                  ["all", "Everyone"],
-                  ["members", "Members"],
-                  ["list", "Mailing list"],
-                  ["tags", "By tag"],
+                  ["all", "Everyone", counts.all],
+                  ["members", "Members", counts.members],
+                  ["list", "Mailing list", counts.list],
+                  ["tags", "By tag", null],
                 ] as const
-              ).map(([k, l]) => {
+              ).map(([k, l, n]) => {
                 const on = audience === k;
                 return (
                   <button
@@ -168,6 +201,9 @@ export function EmailTab({ emails, signups = [] }: Props) {
                     key={k}
                     onClick={() => setAudience(k)}
                     style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: 7,
                       cursor: "pointer",
                       fontSize: 13,
                       fontWeight: 600,
@@ -181,6 +217,22 @@ export function EmailTab({ emails, signups = [] }: Props) {
                     }}
                   >
                     {l}
+                    {n !== null && (
+                      <span
+                        style={{
+                          fontSize: 11.5,
+                          fontWeight: 700,
+                          padding: "1px 7px",
+                          borderRadius: 999,
+                          background: on
+                            ? "rgba(255,255,255,0.22)"
+                            : "var(--surface-sunk)",
+                          color: on ? "#fff" : "var(--fg-subtle)",
+                        }}
+                      >
+                        {n}
+                      </span>
+                    )}
                   </button>
                 );
               })}
@@ -195,15 +247,8 @@ export function EmailTab({ emails, signups = [] }: Props) {
                   borderRadius: "var(--radius-md)",
                 }}
               >
-                <div
-                  style={{
-                    fontSize: 11.5,
-                    color: "var(--fg-muted)",
-                    marginBottom: 8,
-                  }}
-                >
-                  Pick one or more tags — anyone with{" "}
-                  <em>any</em> selected tag receives the blast.
+                <div style={{ fontSize: 11.5, color: "var(--fg-muted)", marginBottom: 8 }}>
+                  Pick one or more tags — anyone with <em>any</em> selected tag receives the blast.
                   {selectedTags.size > 0 && (
                     <strong style={{ color: "var(--fg)", marginLeft: 6 }}>
                       ~{tagEstimate} {tagEstimate === 1 ? "person" : "people"}
@@ -212,12 +257,7 @@ export function EmailTab({ emails, signups = [] }: Props) {
                 </div>
                 <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
                   {tagOptions.length === 0 && (
-                    <span
-                      style={{
-                        fontSize: 12,
-                        color: "var(--fg-subtle)",
-                      }}
-                    >
+                    <span style={{ fontSize: 12, color: "var(--fg-subtle)" }}>
                       No tags on any signups yet.
                     </span>
                   )}
@@ -240,9 +280,7 @@ export function EmailTab({ emails, signups = [] }: Props) {
                           border:
                             "1.5px solid " +
                             (on ? "var(--primary)" : "var(--border-strong)"),
-                          background: on
-                            ? "var(--primary)"
-                            : "var(--surface)",
+                          background: on ? "var(--primary)" : "var(--surface)",
                           color: on ? "#fff" : "var(--fg-muted)",
                         }}
                       >
@@ -254,23 +292,90 @@ export function EmailTab({ emails, signups = [] }: Props) {
               </div>
             )}
           </div>
+
           <input
             style={fieldStyle}
             placeholder="Subject"
             value={subject}
             onChange={(e) => setSubject(e.target.value)}
+            required
           />
-          <textarea
-            style={{
-              ...fieldStyle,
-              resize: "vertical",
-              minHeight: 130,
-              lineHeight: 1.5,
-            }}
-            placeholder="Write your message…"
-            value={body}
-            onChange={(e) => setBody(e.target.value)}
-          />
+
+          <div>
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                marginBottom: 6,
+                gap: 8,
+              }}
+            >
+              <label style={{ fontWeight: 600, fontSize: 13.5 }}>Body (HTML)</label>
+              <span
+                style={{
+                  fontSize: 11.5,
+                  color: "var(--fg-subtle)",
+                  fontFamily: "var(--font-mono)",
+                  letterSpacing: "0.04em",
+                  textTransform: "uppercase",
+                }}
+              >
+                {previewBusy ? "Updating preview…" : "Live preview →"}
+              </span>
+            </div>
+            <div
+              className="email-grid"
+              style={{
+                display: "grid",
+                gridTemplateColumns: "1fr 1fr",
+                gap: 14,
+              }}
+            >
+              <textarea
+                style={{
+                  ...fieldStyle,
+                  resize: "vertical",
+                  minHeight: 320,
+                  fontFamily: "var(--font-mono)",
+                  fontSize: 13.5,
+                  lineHeight: 1.55,
+                }}
+                placeholder="<p>Hey friends — quick update…</p>"
+                value={body}
+                onChange={(e) => setBody(e.target.value)}
+                required
+              />
+              <div
+                style={{
+                  borderRadius: "var(--radius-md)",
+                  border: "1.5px solid var(--border-strong)",
+                  background: "#F7F2EC",
+                  minHeight: 320,
+                  overflow: "hidden",
+                }}
+              >
+                {previewHtml ? (
+                  <iframe
+                    title="Email preview"
+                    srcDoc={previewHtml}
+                    sandbox=""
+                    style={{ width: "100%", height: "100%", minHeight: 320, border: 0, display: "block" }}
+                  />
+                ) : (
+                  <div style={{ padding: 20, color: "var(--fg-muted)", fontSize: 13, textAlign: "center" }}>
+                    Generating preview…
+                  </div>
+                )}
+              </div>
+            </div>
+            <style>{`
+              @media (max-width: 800px) {
+                .email-grid { grid-template-columns: 1fr !important; }
+              }
+            `}</style>
+          </div>
+
           {msg && (
             <div
               style={{
@@ -305,26 +410,20 @@ export function EmailTab({ emails, signups = [] }: Props) {
               {err}
             </div>
           )}
-          <Btn
-            variant="primary"
-            size="lg"
-            type="submit"
-            icon="send"
-            disabled={submitting}
-          >
-            {submitting ? "Queueing…" : "Queue email"}
-          </Btn>
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 7,
-              fontSize: 12,
-              color: "var(--fg-subtle)",
-            }}
-          >
-            <Icon name="info" size={13} /> Delivery to recipients wires up in
-            Phase 3 (Resend / Postmark).
+          <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+            <Btn
+              variant="primary"
+              size="lg"
+              type="submit"
+              icon="send"
+              disabled={submitting || audienceCount === 0}
+            >
+              {submitting ? "Sending…" : `Send to ${audienceCount}`}
+            </Btn>
+            <span style={{ fontSize: 12, color: "var(--fg-subtle)" }}>
+              <Icon name="info" size={12} /> Unsubscribes & dedupes are handled
+              automatically.
+            </span>
           </div>
         </form>
       </div>
@@ -343,102 +442,138 @@ export function EmailTab({ emails, signups = [] }: Props) {
         >
           Outbox &amp; log
         </h3>
-        <div
-          style={{
-            display: "flex",
-            flexDirection: "column",
-            gap: 12,
-          }}
-        >
+        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
           {emails.length === 0 && (
             <p style={{ color: "var(--fg-muted)", fontSize: 14 }}>
-              No emails queued yet.
+              No emails sent yet.
             </p>
           )}
-          {emails.map((em) => {
-            const statusTone =
-              em.status === "sent"
-                ? { fg: "var(--success)", bg: "var(--success-bg)", icon: "check" }
-                : em.status === "failed"
-                  ? { fg: "var(--danger)", bg: "var(--danger-bg)", icon: "x" }
-                  : { fg: "var(--honey-700)", bg: "var(--honey-100)", icon: "clock" };
-            return (
-              <div
-                key={em.id}
-                style={{
-                  background: "var(--surface)",
-                  border: "1px solid var(--border)",
-                  borderRadius: "var(--radius-md)",
-                  padding: "16px 18px",
-                  boxShadow: "var(--shadow-sm)",
-                }}
-              >
-                <div
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 8,
-                    marginBottom: 8,
-                    flexWrap: "wrap",
-                  }}
-                >
-                  <Tag tone="teal" style={{ fontSize: 9.5 }}>
-                    Blast
-                  </Tag>
-                  <span
-                    style={{
-                      display: "inline-flex",
-                      alignItems: "center",
-                      gap: 5,
-                      fontFamily: "var(--font-mono)",
-                      fontSize: 11,
-                      fontWeight: 700,
-                      color: statusTone.fg,
-                      background: statusTone.bg,
-                      padding: "3px 9px",
-                      borderRadius: 999,
-                    }}
-                  >
-                    <Icon name={statusTone.icon} size={12} />
-                    {em.status.charAt(0).toUpperCase() + em.status.slice(1)}
-                  </span>
-                  <span
-                    style={{
-                      marginLeft: "auto",
-                      fontFamily: "var(--font-mono)",
-                      fontSize: 11.5,
-                      color: "var(--fg-subtle)",
-                    }}
-                  >
-                    {em.to_address} · {formatDate(em.created_at)}
-                  </span>
-                </div>
-                <div
-                  style={{
-                    fontSize: 15,
-                    fontWeight: 700,
-                    color: "var(--fg)",
-                    marginBottom: 4,
-                  }}
-                >
-                  {em.subject}
-                </div>
-                <p
-                  style={{
-                    fontSize: 13.5,
-                    color: "var(--fg-muted)",
-                    lineHeight: 1.5,
-                    margin: 0,
-                    whiteSpace: "pre-wrap",
-                  }}
-                >
-                  {em.body}
-                </p>
-              </div>
-            );
-          })}
+          {emails.map((em) => (
+            <LogRow key={em.id} email={em} />
+          ))}
         </div>
       </div>
+    </div>
+  );
+}
+
+function LogRow({ email }: { email: EmailRow }) {
+  const [open, setOpen] = useState(false);
+  const statusTone =
+    email.status === "sent"
+      ? { fg: "var(--success)", bg: "var(--success-bg)", icon: "check" }
+      : email.status === "failed"
+        ? { fg: "var(--danger)", bg: "var(--danger-bg)", icon: "x" }
+        : { fg: "var(--honey-700)", bg: "var(--honey-100)", icon: "clock" };
+  const isHtml = /^<!doctype|<html|<table|<div|<p\s/i.test(email.body || "");
+  return (
+    <div
+      style={{
+        background: "var(--surface)",
+        border: "1px solid var(--border)",
+        borderRadius: "var(--radius-md)",
+        padding: "16px 18px",
+        boxShadow: "var(--shadow-sm)",
+      }}
+    >
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 8,
+          marginBottom: 8,
+          flexWrap: "wrap",
+        }}
+      >
+        <Tag tone="teal" style={{ fontSize: 9.5 }}>
+          {email.subject.startsWith("[BLAST]") ? "Blast" : "Transactional"}
+        </Tag>
+        <span
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 5,
+            fontFamily: "var(--font-mono)",
+            fontSize: 11,
+            fontWeight: 700,
+            color: statusTone.fg,
+            background: statusTone.bg,
+            padding: "3px 9px",
+            borderRadius: 999,
+          }}
+        >
+          <Icon name={statusTone.icon} size={12} />
+          {email.status.charAt(0).toUpperCase() + email.status.slice(1)}
+        </span>
+        <span
+          style={{
+            marginLeft: "auto",
+            fontFamily: "var(--font-mono)",
+            fontSize: 11.5,
+            color: "var(--fg-subtle)",
+          }}
+        >
+          {email.to_address} · {formatDate(email.created_at)}
+        </span>
+      </div>
+      <div
+        style={{
+          fontSize: 15,
+          fontWeight: 700,
+          color: "var(--fg)",
+          marginBottom: 8,
+        }}
+      >
+        {email.subject}
+      </div>
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        style={{
+          background: "transparent",
+          border: "none",
+          padding: 0,
+          color: "var(--primary)",
+          cursor: "pointer",
+          fontSize: 13,
+          fontWeight: 600,
+        }}
+      >
+        {open ? "Hide preview ▴" : "Show preview ▾"}
+      </button>
+      {open && (
+        <div
+          style={{
+            marginTop: 10,
+            borderRadius: "var(--radius-md)",
+            border: "1px solid var(--border)",
+            background: "#F7F2EC",
+            overflow: "hidden",
+          }}
+        >
+          {isHtml ? (
+            <iframe
+              title={`Preview: ${email.subject}`}
+              srcDoc={email.body}
+              sandbox=""
+              style={{ width: "100%", height: 420, border: 0, display: "block" }}
+            />
+          ) : (
+            <pre
+              style={{
+                whiteSpace: "pre-wrap",
+                padding: 14,
+                margin: 0,
+                fontFamily: "var(--font-mono)",
+                fontSize: 13,
+                color: "var(--fg-muted)",
+              }}
+            >
+              {email.body}
+            </pre>
+          )}
+        </div>
+      )}
     </div>
   );
 }
