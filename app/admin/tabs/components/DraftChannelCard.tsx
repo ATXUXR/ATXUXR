@@ -69,6 +69,7 @@ export function DraftChannelCard({
   const handleInsertFromMain = () => {
     if (mainContent) {
       setContent(mainContent);
+      setError(null);
     }
   };
 
@@ -78,6 +79,10 @@ export function DraftChannelCard({
   };
 
   const handleGenerateWithError = async () => {
+    if (!draftId) {
+      setError("Please save the draft first before generating content");
+      return;
+    }
     try {
       setError(null);
       await onGenerateContent();
@@ -257,9 +262,10 @@ export function DraftChannelCard({
               {mainContent && (
                 <Btn
                   onClick={handleGenerateWithError}
-                  disabled={isGenerating}
+                  disabled={isGenerating || !draftId}
                   variant="secondary"
                   size="sm"
+                  title={!draftId ? "Save draft first to generate content" : "Generate channel-specific content from main content"}
                 >
                   <Icon
                     name="zap"
@@ -270,13 +276,17 @@ export function DraftChannelCard({
                 </Btn>
               )}
 
-              {content && draftId && (
+              {(content || draftId) && (
                 <Btn
                   onClick={handleGenerateImage}
-                  disabled={isGeneratingImage}
+                  disabled={isGeneratingImage || !content || !draftId}
                   variant="secondary"
                   size="sm"
-                  title="Generate an image for this channel's content"
+                  title={
+                    !content ? "Add content to generate an image" :
+                    !draftId ? "Save draft first to generate images" :
+                    "Generate an image for this channel's content"
+                  }
                 >
                   <Icon
                     name="image"
