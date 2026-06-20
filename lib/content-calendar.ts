@@ -119,8 +119,8 @@ export interface CalendarDraftVersion {
 
 export interface CalendarDraftWithVersions {
   id: string;
-  pillar: Pillar | null;
-  post_type: PostType | null;
+  pillar: (Pillar | string)[] | null;
+  post_type: (PostType | string)[] | null;
   title: string | null;
   main_content: string | null;
   notes: string | null;

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Btn } from "@/components/ui/Button";
 import { Icon } from "@/components/ui/Icon";
 import type {
@@ -30,23 +30,47 @@ export function DraftChannelCard({
   onImageUpload,
   isGenerating = false,
 }: DraftChannelCardProps) {
-  const [isEditing, setIsEditing] = useState(false);
   const [content, setContent] = useState(version?.content || "");
   const [notes, setNotes] = useState(version?.notes || "");
   const [isSaving, setIsSaving] = useState(false);
-
-  const handleSave = async () => {
-    setIsSaving(true);
-    try {
-      onUpdateContent(content, notes);
-      setIsEditing(false);
-    } finally {
-      setIsSaving(false);
-    }
-  };
+  const [saveTimeout, setSaveTimeout] = useState<NodeJS.Timeout | null>(null);
+  const [selectedText, setSelectedText] = useState<string>("");
 
   const enabled = version?.enabled ?? false;
   const generatedFromMain = version?.generated_from_main ?? false;
+
+  // Auto-save on content change
+  useEffect(() => {
+    if (!enabled || (!content && !notes)) return;
+
+    if (saveTimeout) clearTimeout(saveTimeout);
+
+    const timeout = setTimeout(async () => {
+      setIsSaving(true);
+      try {
+        await onUpdateContent(content, notes);
+      } finally {
+        setIsSaving(false);
+      }
+    }, 1500); // 1.5s debounce for auto-save
+
+    setSaveTimeout(timeout);
+
+    return () => {
+      if (timeout) clearTimeout(timeout);
+    };
+  }, [content, notes, enabled, onUpdateContent]);
+
+  const handleInsertFromMain = () => {
+    if (mainContent) {
+      setContent(mainContent);
+    }
+  };
+
+  const handleTextSelection = () => {
+    const selected = window.getSelection()?.toString() || "";
+    setSelectedText(selected);
+  };
 
   return (
     <div
@@ -59,7 +83,7 @@ export function DraftChannelCard({
         transition: "border-color 200ms",
       }}
     >
-      {/* Header with toggle */}
+      {/* Header with toggle and status */}
       <div
         style={{
           display: "flex",
@@ -97,138 +121,169 @@ export function DraftChannelCard({
             </span>
           )}
         </div>
+        {isSaving && (
+          <span
+            style={{
+              fontSize: 11,
+              color: "var(--fg-muted)",
+              fontStyle: "italic",
+            }}
+          >
+            Saving...
+          </span>
+        )}
       </div>
 
-      {enabled && (
+      {enabled ? (
         <>
-          {/* Preview of content if not editing */}
-          {!isEditing && version?.content && (
-            <div
+          {/* Content editor - always visible when enabled */}
+          <div style={{ marginBottom: 16 }}>
+            <label
               style={{
-                marginBottom: 16,
-                padding: 12,
-                background: "var(--bg)",
-                borderRadius: "var(--radius-md)",
-                fontSize: 14,
-                lineHeight: 1.6,
+                display: "block",
+                fontSize: 12,
+                fontWeight: 700,
                 color: "var(--fg-muted)",
-                maxHeight: 120,
-                overflowY: "auto",
+                marginBottom: 8,
+                textTransform: "uppercase",
+                letterSpacing: "0.5px",
               }}
             >
-              <p style={{ margin: 0 }}>{version.content.substring(0, 200)}...</p>
-            </div>
-          )}
+              Content
+            </label>
+            <textarea
+              value={content}
+              onChange={(e) => setContent(e.target.value)}
+              onMouseUp={handleTextSelection}
+              placeholder={`Write or paste content for ${CHANNEL_LABELS[channel]}...`}
+              style={{
+                width: "100%",
+                minHeight: 240,
+                padding: 12,
+                border: "1px solid var(--border)",
+                borderRadius: "var(--radius-md)",
+                fontFamily: "var(--font-sans)",
+                fontSize: 14,
+                lineHeight: 1.6,
+                boxSizing: "border-box",
+                resize: "vertical",
+                background: "var(--bg)",
+                color: "var(--fg)",
+              }}
+            />
 
-          {/* Edit mode */}
-          {isEditing ? (
-            <>
-              <textarea
-                value={content}
-                onChange={(e) => setContent(e.target.value)}
-                placeholder={`Write content for ${CHANNEL_LABELS[channel]}...`}
-                style={{
-                  width: "100%",
-                  minHeight: 200,
-                  padding: 12,
-                  border: "1px solid var(--border)",
-                  borderRadius: "var(--radius-md)",
-                  fontFamily: "var(--font-mono)",
-                  fontSize: 13,
-                  marginBottom: 12,
-                  boxSizing: "border-box",
-                  resize: "vertical",
-                }}
-              />
-
-              <textarea
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
-                placeholder="Notes (hashtags, alt text, caveats)..."
-                style={{
-                  width: "100%",
-                  minHeight: 80,
-                  padding: 12,
-                  border: "1px solid var(--border)",
-                  borderRadius: "var(--radius-md)",
-                  fontFamily: "var(--font-mono)",
-                  fontSize: 13,
-                  marginBottom: 12,
-                  boxSizing: "border-box",
-                  resize: "vertical",
-                }}
-              />
-
-              <div style={{ display: "flex", gap: 8 }}>
+            {/* Content toolbar */}
+            <div
+              style={{
+                display: "flex",
+                gap: 8,
+                marginTop: 8,
+                flexWrap: "wrap",
+              }}
+            >
+              {mainContent && (
                 <Btn
-                  onClick={handleSave}
-                  disabled={isSaving}
-                  style={{ flex: 1 }}
-                >
-                  {isSaving ? "Saving..." : "Save"}
-                </Btn>
-                <Btn
-                  onClick={() => setIsEditing(false)}
-                  variant="secondary"
-                  style={{ flex: 1 }}
-                >
-                  Cancel
-                </Btn>
-              </div>
-            </>
-          ) : (
-            <>
-              {/* Buttons when not editing */}
-              <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                <Btn
-                  onClick={() => setIsEditing(true)}
+                  onClick={handleInsertFromMain}
                   variant="secondary"
                   size="sm"
                 >
-                  <Icon name="edit-2" size={14} style={{ marginRight: 4 }} />
-                  Edit
+                  <Icon
+                    name="copy"
+                    size={14}
+                    style={{ marginRight: 4 }}
+                  />
+                  Insert from main
                 </Btn>
+              )}
 
-                {mainContent && (
-                  <Btn
-                    onClick={onGenerateContent}
-                    disabled={isGenerating}
-                    variant="secondary"
-                    size="sm"
-                  >
-                    <Icon
-                      name="zap"
-                      size={14}
-                      style={{ marginRight: 4 }}
-                    />
-                    {isGenerating ? "Generating..." : "Generate"}
-                  </Btn>
-                )}
+              {mainContent && (
+                <Btn
+                  onClick={onGenerateContent}
+                  disabled={isGenerating}
+                  variant="secondary"
+                  size="sm"
+                >
+                  <Icon
+                    name="zap"
+                    size={14}
+                    style={{ marginRight: 4 }}
+                  />
+                  {isGenerating ? "Generating..." : "Generate via AI"}
+                </Btn>
+              )}
 
-                {version?.image_url && (
-                  <div
-                    style={{
-                      marginTop: 8,
-                      width: "100%",
-                      borderRadius: "var(--radius-md)",
-                      overflow: "hidden",
-                      maxHeight: 200,
-                    }}
-                  >
-                    <img
-                      src={version.image_url}
-                      alt={`${channel} version`}
-                      style={{ width: "100%", height: "auto" }}
-                    />
-                  </div>
-                )}
-              </div>
-            </>
+              {selectedText && (
+                <Btn
+                  variant="secondary"
+                  size="sm"
+                  title="Generate image from selected text"
+                >
+                  <Icon
+                    name="image"
+                    size={14}
+                    style={{ marginRight: 4 }}
+                  />
+                  Image from selection
+                </Btn>
+              )}
+            </div>
+          </div>
+
+          {/* Notes section */}
+          <div style={{ marginBottom: 12 }}>
+            <label
+              style={{
+                display: "block",
+                fontSize: 12,
+                fontWeight: 700,
+                color: "var(--fg-muted)",
+                marginBottom: 8,
+                textTransform: "uppercase",
+                letterSpacing: "0.5px",
+              }}
+            >
+              Notes (hashtags, alt text, caveats)
+            </label>
+            <textarea
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              placeholder="Add channel-specific notes, hashtags, or formatting hints..."
+              style={{
+                width: "100%",
+                minHeight: 80,
+                padding: 12,
+                border: "1px solid var(--border)",
+                borderRadius: "var(--radius-md)",
+                fontFamily: "var(--font-sans)",
+                fontSize: 13,
+                boxSizing: "border-box",
+                resize: "vertical",
+                background: "var(--bg)",
+                color: "var(--fg)",
+              }}
+            />
+          </div>
+
+          {/* Image preview if exists */}
+          {version?.image_url && (
+            <div
+              style={{
+                marginTop: 16,
+                borderRadius: "var(--radius-md)",
+                overflow: "hidden",
+                maxHeight: 300,
+                border: "1px solid var(--border)",
+              }}
+            >
+              <img
+                src={version.image_url}
+                alt={`Generated for ${channel}`}
+                style={{ width: "100%", height: "auto", display: "block" }}
+              />
+            </div>
           )}
         </>
-      )}
-
-      {!enabled && (
+      ) : (
         <div
           style={{
             textAlign: "center",
@@ -237,7 +292,8 @@ export function DraftChannelCard({
             fontSize: 14,
           }}
         >
-          Enable this channel to add content
+          <Icon name="check-circle" size={24} style={{ marginBottom: 8 }} />
+          <p style={{ margin: 0 }}>Enable this channel to add content</p>
         </div>
       )}
     </div>

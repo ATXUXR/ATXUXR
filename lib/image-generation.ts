@@ -25,8 +25,8 @@ async function generateViaReplicate(prompt: string): Promise<string> {
     throw new Error("REPLICATE_API_KEY not set");
   }
 
-  // FLUX Pro model - fast and high quality
-  const version = "bd264eaef2c50b63661ac4d29753975e56a8d57db68264e5dacbf4e5c64a26de";
+  // FLUX Pro model - using latest stable version
+  const version = "4b409e128accd5f6695d9bf498eaf968f5c411b2f0aeb1e598c269b721adb415";
 
   const response = await fetch("https://api.replicate.com/v1/predictions", {
     method: "POST",

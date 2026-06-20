@@ -26,8 +26,9 @@ export function DraftEditor({
 }: DraftEditorProps) {
   const [title, setTitle] = useState(draft?.title || "");
   const [mainContent, setMainContent] = useState(draft?.main_content || "");
-  const [pillar, setPillar] = useState(draft?.pillar || "");
-  const [postType, setPostType] = useState(draft?.post_type || "");
+  const [pillars, setPillars] = useState<(string)[]>(draft?.pillar || []);
+  const [customPillar, setCustomPillar] = useState("");
+  const [postTypes, setPostTypes] = useState<string[]>(draft?.post_type || []);
   const [notes, setNotes] = useState(draft?.notes || "");
   const [scheduledDate, setScheduledDate] = useState(draft?.scheduled_date || "");
 
@@ -52,13 +53,18 @@ export function DraftEditor({
     return () => {
       if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
     };
-  }, [title, mainContent, pillar, postType, notes, scheduledDate]);
+  }, [title, mainContent, pillars, postTypes, notes, scheduledDate, customPillar]);
 
   const handleAutoSave = async () => {
     if (!title && !mainContent) return;
 
     setIsSaving(true);
     try {
+      const allPillars = [...pillars];
+      if (customPillar.trim()) {
+        allPillars.push(customPillar.trim());
+      }
+
       const response = await fetch("/api/admin/calendar/draft", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -66,8 +72,8 @@ export function DraftEditor({
           id: draftIdRef.current,
           title,
           main_content: mainContent,
-          pillar: pillar || null,
-          post_type: postType || null,
+          pillar: allPillars.length > 0 ? allPillars : null,
+          post_type: postTypes.length > 0 ? postTypes : null,
           notes,
           scheduled_date: scheduledDate || null,
         }),
@@ -84,6 +90,18 @@ export function DraftEditor({
     } finally {
       setIsSaving(false);
     }
+  };
+
+  const togglePillar = (pillar: string) => {
+    setPillars((prev) =>
+      prev.includes(pillar) ? prev.filter((p) => p !== pillar) : [...prev, pillar]
+    );
+  };
+
+  const togglePostType = (type: string) => {
+    setPostTypes((prev) =>
+      prev.includes(type) ? prev.filter((t) => t !== type) : [...prev, type]
+    );
   };
 
   const handleToggleChannel = async (channel: Channel, enabled: boolean) => {
@@ -229,45 +247,84 @@ export function DraftEditor({
         }}
       />
 
-      {/* Metadata row */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 16 }}>
-        <select
-          value={pillar}
-          onChange={(e) => setPillar(e.target.value)}
+      {/* Pillars multi-select */}
+      <div style={{ marginBottom: 16 }}>
+        <label
           style={{
-            padding: 10,
-            fontSize: 13,
-            border: "1px solid var(--border)",
-            borderRadius: "var(--radius-md)",
-            boxSizing: "border-box",
+            display: "block",
+            fontSize: 12,
+            fontWeight: 700,
+            color: "var(--fg-muted)",
+            marginBottom: 8,
+            textTransform: "uppercase",
+            letterSpacing: "0.5px",
           }}
         >
-          <option value="">Select pillar...</option>
-          {PILLARS.map((p) => (
-            <option key={p} value={p}>
-              {p}
-            </option>
+          Pillars (select one or more)
+        </label>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 12 }}>
+          {PILLARS.map((pillar) => (
+            <label key={pillar} style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <input
+                type="checkbox"
+                checked={pillars.includes(pillar)}
+                onChange={() => togglePillar(pillar)}
+                style={{ width: 16, height: 16, cursor: "pointer" }}
+              />
+              <span style={{ fontSize: 13 }}>{pillar}</span>
+            </label>
           ))}
-        </select>
+        </div>
 
-        <select
-          value={postType}
-          onChange={(e) => setPostType(e.target.value)}
+        {/* Custom pillar input */}
+        <div style={{ display: "flex", gap: 8 }}>
+          <input
+            type="text"
+            value={customPillar}
+            onChange={(e) => setCustomPillar(e.target.value)}
+            placeholder="Or enter a custom pillar..."
+            style={{
+              flex: 1,
+              padding: 10,
+              fontSize: 13,
+              border: "1px solid var(--border)",
+              borderRadius: "var(--radius-md)",
+              boxSizing: "border-box",
+            }}
+          />
+        </div>
+      </div>
+
+      {/* Post types multi-select */}
+      <div style={{ marginBottom: 16 }}>
+        <label
           style={{
-            padding: 10,
-            fontSize: 13,
-            border: "1px solid var(--border)",
-            borderRadius: "var(--radius-md)",
-            boxSizing: "border-box",
+            display: "block",
+            fontSize: 12,
+            fontWeight: 700,
+            color: "var(--fg-muted)",
+            marginBottom: 8,
+            textTransform: "uppercase",
+            letterSpacing: "0.5px",
           }}
         >
-          <option value="">Select type...</option>
-          {POST_TYPES.map((t) => (
-            <option key={t} value={t}>
-              {POST_TYPE_LABELS[t as keyof typeof POST_TYPE_LABELS]}
-            </option>
+          Post Types (select one or more)
+        </label>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+          {POST_TYPES.map((type) => (
+            <label key={type} style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <input
+                type="checkbox"
+                checked={postTypes.includes(type)}
+                onChange={() => togglePostType(type)}
+                style={{ width: 16, height: 16, cursor: "pointer" }}
+              />
+              <span style={{ fontSize: 13 }}>
+                {POST_TYPE_LABELS[type as keyof typeof POST_TYPE_LABELS]}
+              </span>
+            </label>
           ))}
-        </select>
+        </div>
       </div>
 
       {/* Scheduled date */}
@@ -309,12 +366,13 @@ export function DraftEditor({
           minHeight: 200,
           padding: 12,
           fontSize: 13,
-          fontFamily: "var(--font-mono)",
+          fontFamily: "var(--font-sans)",
           border: "1px solid var(--border)",
           borderRadius: "var(--radius-md)",
           marginBottom: 24,
           boxSizing: "border-box",
           resize: "vertical",
+          lineHeight: 1.6,
         }}
       />
 
@@ -341,12 +399,13 @@ export function DraftEditor({
           minHeight: 100,
           padding: 12,
           fontSize: 13,
-          fontFamily: "var(--font-mono)",
+          fontFamily: "var(--font-sans)",
           border: "1px solid var(--border)",
           borderRadius: "var(--radius-md)",
           marginBottom: 24,
           boxSizing: "border-box",
           resize: "vertical",
+          lineHeight: 1.6,
         }}
       />
 
