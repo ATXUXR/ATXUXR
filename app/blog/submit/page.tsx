@@ -53,8 +53,10 @@ export default async function SubmitPage() {
   return (
     <>
       <PageHero
+        icon="edit-3"
+        eyebrow="COMMUNITY"
         title="Share your perspective"
-        subtitle="Contribute to the ATXUXR blog"
+        sub="Contribute to the ATXUXR blog"
       />
       <section style={{ background: "var(--bg)", minHeight: "60vh" }}>
         <div
