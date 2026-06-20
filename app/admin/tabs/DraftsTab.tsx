@@ -22,8 +22,18 @@ export function DraftsTab({ drafts: initialDrafts }: DraftsTabProps) {
     setIsCreating(true);
   };
 
-  const handleSaveDraft = (draftId: string) => {
+  const handleSaveDraft = async (draftId: string) => {
     setSelectedDraftId(draftId);
+    // Refresh drafts list to show newly created draft
+    try {
+      const response = await fetch("/api/admin/calendar/drafts");
+      if (response.ok) {
+        const updatedDrafts = await response.json();
+        setDrafts(updatedDrafts);
+      }
+    } catch (err) {
+      console.error("Failed to refresh drafts list:", err);
+    }
   };
 
   return (
