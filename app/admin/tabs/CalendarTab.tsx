@@ -8,6 +8,7 @@ import { Tag } from "@/components/ui/Tag";
 import { ShareDialog } from "@/components/admin/ShareDialog";
 import {
   CHANNEL_LABELS,
+  PILLARS,
   POST_TYPE_LABELS,
   type CalendarDraft,
   type CalendarPost,
