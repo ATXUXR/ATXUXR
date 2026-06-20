@@ -509,16 +509,19 @@ export function RichTextEditor({
       </div>
 
       {/* Editor */}
-      <EditorContent
-        editor={editor}
-        style={{
-          padding: 16,
-          minHeight: 400,
-          fontSize: 14,
-          lineHeight: 1.8,
-          color: "var(--fg)",
-        }}
-      />
+      <div style={{ minHeight: 500, background: "var(--bg)" }}>
+        <EditorContent
+          editor={editor}
+          style={{
+            padding: 16,
+            minHeight: "100%",
+            fontSize: 14,
+            lineHeight: 1.8,
+            color: "white",
+            outline: "none",
+          }}
+        />
+      </div>
     </div>
   );
 }
