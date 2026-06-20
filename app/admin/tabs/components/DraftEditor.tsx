@@ -1,0 +1,410 @@
+"use client";
+
+import { useEffect, useState, useRef } from "react";
+import { Btn } from "@/components/ui/Button";
+import { Icon } from "@/components/ui/Icon";
+import {
+  CHANNELS,
+  PILLARS,
+  POST_TYPES,
+  POST_TYPE_LABELS,
+  type CalendarDraftWithVersions,
+  type Channel,
+} from "@/lib/content-calendar";
+import { DraftChannelCard } from "./DraftChannelCard";
+
+interface DraftEditorProps {
+  draft?: CalendarDraftWithVersions;
+  onSave?: (draftId: string) => void;
+  onPublish?: (draftId: string) => void;
+}
+
+export function DraftEditor({
+  draft,
+  onSave,
+  onPublish,
+}: DraftEditorProps) {
+  const [title, setTitle] = useState(draft?.title || "");
+  const [mainContent, setMainContent] = useState(draft?.main_content || "");
+  const [pillar, setPillar] = useState(draft?.pillar || "");
+  const [postType, setPostType] = useState(draft?.post_type || "");
+  const [notes, setNotes] = useState(draft?.notes || "");
+  const [scheduledDate, setScheduledDate] = useState(draft?.scheduled_date || "");
+
+  const [versions, setVersions] = useState(draft?.versions || []);
+  const [isSaving, setIsSaving] = useState(false);
+  const [isGenerating, setIsGenerating] = useState<Channel | null>(null);
+  const [lastSaved, setLastSaved] = useState<string | null>(null);
+
+  const saveTimeoutRef = useRef<NodeJS.Timeout>();
+  const draftIdRef = useRef(draft?.id);
+
+  // Auto-save when content changes
+  useEffect(() => {
+    if (!title && !mainContent) return; // Don't autosave empty drafts
+
+    if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
+
+    saveTimeoutRef.current = setTimeout(async () => {
+      await handleAutoSave();
+    }, 2000); // 2 second debounce
+
+    return () => {
+      if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
+    };
+  }, [title, mainContent, pillar, postType, notes, scheduledDate]);
+
+  const handleAutoSave = async () => {
+    if (!title && !mainContent) return;
+
+    setIsSaving(true);
+    try {
+      const response = await fetch("/api/admin/calendar/draft", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: draftIdRef.current,
+          title,
+          main_content: mainContent,
+          pillar: pillar || null,
+          post_type: postType || null,
+          notes,
+          scheduled_date: scheduledDate || null,
+        }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        draftIdRef.current = data.id;
+        setLastSaved(new Date().toLocaleTimeString());
+        onSave?.(data.id);
+      }
+    } catch (err) {
+      console.error("Auto-save failed:", err);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleToggleChannel = async (channel: Channel, enabled: boolean) => {
+    if (!draftIdRef.current) return;
+
+    const response = await fetch(
+      `/api/admin/calendar/draft/${draftIdRef.current}/version`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          channel,
+          enabled,
+          content: "",
+        }),
+      }
+    );
+
+    if (response.ok) {
+      const updated = await response.json();
+      setVersions((prev) => {
+        const idx = prev.findIndex((v) => v.channel === channel);
+        if (idx >= 0) {
+          const next = [...prev];
+          next[idx] = updated;
+          return next;
+        }
+        return [...prev, updated];
+      });
+    }
+  };
+
+  const handleUpdateChannelContent = async (
+    channel: Channel,
+    content: string,
+    notes: string
+  ) => {
+    if (!draftIdRef.current) return;
+
+    const response = await fetch(
+      `/api/admin/calendar/draft/${draftIdRef.current}/version`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          channel,
+          content,
+          notes,
+        }),
+      }
+    );
+
+    if (response.ok) {
+      const updated = await response.json();
+      setVersions((prev) => {
+        const idx = prev.findIndex((v) => v.channel === channel);
+        if (idx >= 0) {
+          const next = [...prev];
+          next[idx] = updated;
+          return next;
+        }
+        return [...prev, updated];
+      });
+    }
+  };
+
+  const handleGenerateContent = async (channel: Channel) => {
+    if (!draftIdRef.current || !mainContent) return;
+
+    setIsGenerating(channel);
+    try {
+      const response = await fetch(
+        `/api/admin/calendar/draft/${draftIdRef.current}/generate`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ channel }),
+        }
+      );
+
+      if (response.ok) {
+        const updated = await response.json();
+        setVersions((prev) => {
+          const idx = prev.findIndex((v) => v.channel === channel);
+          if (idx >= 0) {
+            const next = [...prev];
+            next[idx] = updated;
+            return next;
+          }
+          return [...prev, updated];
+        });
+      }
+    } finally {
+      setIsGenerating(null);
+    }
+  };
+
+  return (
+    <div style={{ maxWidth: 900 }}>
+      {/* Header with save status */}
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          marginBottom: 24,
+        }}
+      >
+        <div>
+          <h2 style={{ margin: 0, marginBottom: 4 }}>
+            {draft ? "Edit Draft" : "New Draft"}
+          </h2>
+          {lastSaved && (
+            <p
+              style={{
+                margin: 0,
+                fontSize: 12,
+                color: "var(--fg-muted)",
+              }}
+            >
+              Last saved {lastSaved}
+              {isSaving && " • Saving..."}
+            </p>
+          )}
+        </div>
+      </div>
+
+      {/* Title */}
+      <input
+        type="text"
+        value={title}
+        onChange={(e) => setTitle(e.target.value)}
+        placeholder="Post title..."
+        style={{
+          width: "100%",
+          padding: 12,
+          fontSize: 18,
+          fontWeight: 600,
+          border: "1px solid var(--border)",
+          borderRadius: "var(--radius-md)",
+          marginBottom: 16,
+          boxSizing: "border-box",
+        }}
+      />
+
+      {/* Metadata row */}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 16 }}>
+        <select
+          value={pillar}
+          onChange={(e) => setPillar(e.target.value)}
+          style={{
+            padding: 10,
+            fontSize: 13,
+            border: "1px solid var(--border)",
+            borderRadius: "var(--radius-md)",
+            boxSizing: "border-box",
+          }}
+        >
+          <option value="">Select pillar...</option>
+          {PILLARS.map((p) => (
+            <option key={p} value={p}>
+              {p}
+            </option>
+          ))}
+        </select>
+
+        <select
+          value={postType}
+          onChange={(e) => setPostType(e.target.value)}
+          style={{
+            padding: 10,
+            fontSize: 13,
+            border: "1px solid var(--border)",
+            borderRadius: "var(--radius-md)",
+            boxSizing: "border-box",
+          }}
+        >
+          <option value="">Select type...</option>
+          {POST_TYPES.map((t) => (
+            <option key={t} value={t}>
+              {POST_TYPE_LABELS[t as keyof typeof POST_TYPE_LABELS]}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      {/* Scheduled date */}
+      <input
+        type="date"
+        value={scheduledDate}
+        onChange={(e) => setScheduledDate(e.target.value)}
+        style={{
+          width: "100%",
+          padding: 10,
+          fontSize: 13,
+          border: "1px solid var(--border)",
+          borderRadius: "var(--radius-md)",
+          marginBottom: 16,
+          boxSizing: "border-box",
+        }}
+      />
+
+      {/* Main content */}
+      <label style={{ display: "block", marginBottom: 8 }}>
+        <span
+          style={{
+            fontSize: 12,
+            fontWeight: 700,
+            color: "var(--fg-muted)",
+            textTransform: "uppercase",
+            letterSpacing: "0.5px",
+          }}
+        >
+          Main Content (for all channels)
+        </span>
+      </label>
+      <textarea
+        value={mainContent}
+        onChange={(e) => setMainContent(e.target.value)}
+        placeholder="Write the main content. Channel-specific versions will be generated or customized from this..."
+        style={{
+          width: "100%",
+          minHeight: 200,
+          padding: 12,
+          fontSize: 13,
+          fontFamily: "var(--font-mono)",
+          border: "1px solid var(--border)",
+          borderRadius: "var(--radius-md)",
+          marginBottom: 24,
+          boxSizing: "border-box",
+          resize: "vertical",
+        }}
+      />
+
+      {/* Notes */}
+      <label style={{ display: "block", marginBottom: 8 }}>
+        <span
+          style={{
+            fontSize: 12,
+            fontWeight: 700,
+            color: "var(--fg-muted)",
+            textTransform: "uppercase",
+            letterSpacing: "0.5px",
+          }}
+        >
+          Admin Notes
+        </span>
+      </label>
+      <textarea
+        value={notes}
+        onChange={(e) => setNotes(e.target.value)}
+        placeholder="Internal notes for reviewers..."
+        style={{
+          width: "100%",
+          minHeight: 100,
+          padding: 12,
+          fontSize: 13,
+          fontFamily: "var(--font-mono)",
+          border: "1px solid var(--border)",
+          borderRadius: "var(--radius-md)",
+          marginBottom: 24,
+          boxSizing: "border-box",
+          resize: "vertical",
+        }}
+      />
+
+      {/* Channel cards */}
+      <h3
+        style={{
+          margin: "24px 0 16px",
+          fontSize: 14,
+          fontWeight: 700,
+          textTransform: "uppercase",
+          letterSpacing: "0.5px",
+          color: "var(--fg-muted)",
+        }}
+      >
+        Channel Versions
+      </h3>
+
+      <div>
+        {CHANNELS.map((channel) => {
+          const version = versions.find((v) => v.channel === channel);
+          return (
+            <DraftChannelCard
+              key={channel}
+              version={version || null}
+              channel={channel}
+              mainContent={mainContent}
+              onToggle={(enabled) => handleToggleChannel(channel, enabled)}
+              onUpdateContent={(content, notes) =>
+                handleUpdateChannelContent(channel, content, notes)
+              }
+              onGenerateContent={() => handleGenerateContent(channel)}
+              isGenerating={isGenerating === channel}
+            />
+          );
+        })}
+      </div>
+
+      {/* Action buttons */}
+      {draftIdRef.current && (
+        <div
+          style={{
+            display: "flex",
+            gap: 8,
+            marginTop: 24,
+            paddingTop: 24,
+            borderTop: "1px solid var(--border)",
+          }}
+        >
+          <Btn onClick={() => onPublish?.(draftIdRef.current!)}>
+            <Icon name="send" size={14} style={{ marginRight: 4 }} />
+            Schedule & Publish
+          </Btn>
+          <Btn variant="secondary">
+            <Icon name="trash-2" size={14} style={{ marginRight: 4 }} />
+            Delete Draft
+          </Btn>
+        </div>
+      )}
+    </div>
+  );
+}

@@ -20,6 +20,7 @@ export default async function AdminPage({ searchParams }: PageProps) {
     | "events"
     | "share"
     | "calendar"
+    | "drafts"
     | "blog-submissions"
     | "members"
     | "signups"
@@ -63,14 +64,25 @@ export default async function AdminPage({ searchParams }: PageProps) {
     );
   }
 
-  const [bundle, calendar, { data: blogSubmissions }] = await Promise.all([
-    getAdminBundle({ analyticsDays: days }),
-    getCalendar(),
-    supabase
-      .from("blog_submissions")
-      .select("*")
-      .order("submitted_at", { ascending: false }),
-  ]);
+  const [bundle, calendar, { data: blogSubmissions }, { data: draftsRaw }] =
+    await Promise.all([
+      getAdminBundle({ analyticsDays: days }),
+      getCalendar(),
+      supabase
+        .from("blog_submissions")
+        .select("*")
+        .order("submitted_at", { ascending: false }),
+      supabase
+        .from("calendar_drafts")
+        .select("*, calendar_draft_versions(*)")
+        .order("updated_at", { ascending: false }),
+    ]);
+
+  // Transform drafts to include versions
+  const drafts = (draftsRaw || []).map((d: any) => ({
+    ...d,
+    versions: d.calendar_draft_versions || [],
+  }));
   if (!bundle) {
     return (
       <NotAdmin
@@ -145,6 +157,7 @@ export default async function AdminPage({ searchParams }: PageProps) {
         meId={me.id}
         days={days}
         calendar={calendar}
+        drafts={drafts}
         blogSubmissions={blogSubmissions || []}
       />
     </>

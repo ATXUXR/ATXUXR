@@ -13,15 +13,17 @@ import { EmailTab } from "./tabs/EmailTab";
 import { EventsTab } from "./tabs/EventsTab";
 import { ShareTab } from "./tabs/ShareTab";
 import { CalendarTab } from "./tabs/CalendarTab";
+import { DraftsTab } from "./tabs/DraftsTab";
 import { BlogSubmissionsTab, type BlogSubmission } from "./tabs/BlogSubmissionsTab";
 import { AnalyticsTab } from "./tabs/AnalyticsTab";
-import type { CalendarRow } from "@/lib/content-calendar";
+import type { CalendarRow, CalendarDraftWithVersions } from "@/lib/content-calendar";
 
 type TabKey =
   | "submissions"
   | "events"
   | "share"
   | "calendar"
+  | "drafts"
   | "blog-submissions"
   | "members"
   | "signups"
@@ -37,16 +39,18 @@ interface Props {
   meId: string;
   days: number;
   calendar: CalendarRow[];
+  drafts: CalendarDraftWithVersions[];
   blogSubmissions: BlogSubmission[];
 }
 
-export function AdminShell({ bundle, tab, meId, days, calendar, blogSubmissions }: Props) {
+export function AdminShell({ bundle, tab, meId, days, calendar, drafts, blogSubmissions }: Props) {
   const params = useSearchParams();
 
   const tabs: Array<{ key: TabKey; label: string; count?: number }> = [
     { key: "submissions", label: "Submissions", count: bundle.pending.length },
     { key: "events", label: "Events", count: bundle.eventsFull.length },
     { key: "calendar", label: "Calendar", count: calendar.length },
+    { key: "drafts", label: "Drafts", count: drafts.filter((d) => d.status === "draft").length },
     { key: "share", label: "Share" },
     { key: "blog-submissions", label: "Blog submissions", count: blogSubmissions.filter((s) => s.status === "pending").length },
     { key: "members", label: "Members", count: bundle.members.length },
@@ -166,6 +170,7 @@ export function AdminShell({ bundle, tab, meId, days, calendar, blogSubmissions 
             />
           )}
           {tab === "calendar" && <CalendarTab rows={calendar} />}
+          {tab === "drafts" && <DraftsTab drafts={drafts} />}
           {tab === "blog-submissions" && (
             <BlogSubmissionsTab submissions={blogSubmissions} members={bundle.members} />
           )}
