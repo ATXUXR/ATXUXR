@@ -422,11 +422,24 @@ export function DraftEditor({
               version={version || null}
               channel={channel}
               mainContent={mainContent}
+              draftId={draftIdRef.current}
               onToggle={(enabled) => handleToggleChannel(channel, enabled)}
               onUpdateContent={(content, notes) =>
                 handleUpdateChannelContent(channel, content, notes)
               }
               onGenerateContent={() => handleGenerateContent(channel)}
+              onImageGenerated={(url) => {
+                // Refresh version with new image
+                setVersions((prev) => {
+                  const idx = prev.findIndex((v) => v.channel === channel);
+                  if (idx >= 0) {
+                    const next = [...prev];
+                    next[idx] = { ...next[idx], image_url: url };
+                    return next;
+                  }
+                  return prev;
+                });
+              }}
               isGenerating={isGenerating === channel}
             />
           );

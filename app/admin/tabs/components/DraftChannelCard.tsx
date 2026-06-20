@@ -8,15 +8,17 @@ import type {
   CalendarDraftVersion,
 } from "@/lib/content-calendar";
 import { CHANNEL_LABELS } from "@/lib/content-calendar";
+import { RichTextEditor } from "./RichTextEditor";
 
 interface DraftChannelCardProps {
   version: CalendarDraftVersion | null;
   channel: Channel;
   mainContent: string | null;
+  draftId?: string;
   onToggle: (enabled: boolean) => void;
   onUpdateContent: (content: string, notes: string) => void;
   onGenerateContent: () => Promise<void>;
-  onImageUpload?: (url: string) => void;
+  onImageGenerated?: (url: string) => void;
   isGenerating?: boolean;
 }
 
@@ -24,10 +26,11 @@ export function DraftChannelCard({
   version,
   channel,
   mainContent,
+  draftId,
   onToggle,
   onUpdateContent,
   onGenerateContent,
-  onImageUpload,
+  onImageGenerated,
   isGenerating = false,
 }: DraftChannelCardProps) {
   const [content, setContent] = useState(version?.content || "");
@@ -36,6 +39,7 @@ export function DraftChannelCard({
   const [saveTimeout, setSaveTimeout] = useState<NodeJS.Timeout | null>(null);
   const [selectedText, setSelectedText] = useState<string>("");
   const [error, setError] = useState<string | null>(null);
+  const [isGeneratingImage, setIsGeneratingImage] = useState(false);
 
   const enabled = version?.enabled ?? false;
   const generatedFromMain = version?.generated_from_main ?? false;
@@ -81,6 +85,45 @@ export function DraftChannelCard({
       const errorMsg = err instanceof Error ? err.message : "Failed to generate content";
       setError(errorMsg);
       console.error("Generation error:", err);
+    }
+  };
+
+  const handleGenerateImage = async () => {
+    if (!draftId || !content) {
+      setError("Content required to generate image");
+      return;
+    }
+
+    setIsGeneratingImage(true);
+    setError(null);
+    try {
+      const response = await fetch(`/api/admin/calendar/draft/${draftId}/image`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          channel,
+          content,
+          prompt: notes,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Failed to generate image");
+      }
+
+      const { imageUrl } = await response.json();
+      if (imageUrl) {
+        // Update the version with the image URL
+        await onUpdateContent(content, notes);
+        onImageGenerated?.(imageUrl);
+      }
+    } catch (err) {
+      const errorMsg = err instanceof Error ? err.message : "Image generation failed";
+      setError(errorMsg);
+      console.error("Image generation error:", err);
+    } finally {
+      setIsGeneratingImage(false);
     }
   };
 
@@ -148,7 +191,7 @@ export function DraftChannelCard({
 
       {enabled ? (
         <>
-          {/* Content editor - always visible when enabled */}
+          {/* Content editor - rich text when enabled */}
           <div style={{ marginBottom: 16 }}>
             <label
               style={{
@@ -163,25 +206,10 @@ export function DraftChannelCard({
             >
               Content
             </label>
-            <textarea
+            <RichTextEditor
               value={content}
-              onChange={(e) => setContent(e.target.value)}
-              onMouseUp={handleTextSelection}
+              onChange={setContent}
               placeholder={`Write or paste content for ${CHANNEL_LABELS[channel]}...`}
-              style={{
-                width: "100%",
-                minHeight: 240,
-                padding: 12,
-                border: "1px solid var(--border)",
-                borderRadius: "var(--radius-md)",
-                fontFamily: "var(--font-sans)",
-                fontSize: 14,
-                lineHeight: 1.6,
-                boxSizing: "border-box",
-                resize: "vertical",
-                background: "var(--bg)",
-                color: "var(--fg)",
-              }}
             />
 
             {/* Error message */}
@@ -242,6 +270,23 @@ export function DraftChannelCard({
                 </Btn>
               )}
 
+              {content && draftId && (
+                <Btn
+                  onClick={handleGenerateImage}
+                  disabled={isGeneratingImage}
+                  variant="secondary"
+                  size="sm"
+                  title="Generate an image for this channel's content"
+                >
+                  <Icon
+                    name="image"
+                    size={14}
+                    style={{ marginRight: 4 }}
+                  />
+                  {isGeneratingImage ? "Generating..." : "Generate Image"}
+                </Btn>
+              )}
+
               {selectedText && (
                 <Btn
                   variant="secondary"
@@ -249,11 +294,11 @@ export function DraftChannelCard({
                   title="Generate image from selected text"
                 >
                   <Icon
-                    name="image"
+                    name="sparkles"
                     size={14}
                     style={{ marginRight: 4 }}
                   />
-                  Image from selection
+                  AI for selection
                 </Btn>
               )}
             </div>
