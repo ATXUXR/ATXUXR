@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import type { AdminBundle } from "@/lib/admin";
-import { SubmissionsTab } from "./tabs/SubmissionsTab";
 import { MembersTab } from "./tabs/MembersTab";
 import { SignupsTab } from "./tabs/SignupsTab";
 import { RsvpsTab } from "./tabs/RsvpsTab";
@@ -14,17 +13,16 @@ import { EventsTab } from "./tabs/EventsTab";
 import { ShareTab } from "./tabs/ShareTab";
 import { CalendarTab } from "./tabs/CalendarTab";
 import { DraftsTab } from "./tabs/DraftsTab";
-import { BlogSubmissionsTab, type BlogSubmission } from "./tabs/BlogSubmissionsTab";
+import { ContentSubmissionsTab, type BlogSubmission } from "./tabs/ContentSubmissionsTab";
 import { AnalyticsTab } from "./tabs/AnalyticsTab";
 import type { CalendarRow, CalendarDraftWithVersions } from "@/lib/content-calendar";
 
 type TabKey =
-  | "submissions"
+  | "content-submissions"
   | "events"
   | "share"
   | "calendar"
   | "drafts"
-  | "blog-submissions"
   | "members"
   | "signups"
   | "rsvps"
@@ -40,19 +38,25 @@ interface Props {
   days: number;
   calendar: CalendarRow[];
   drafts: CalendarDraftWithVersions[];
+  formSubmissions: any[];
   blogSubmissions: BlogSubmission[];
 }
 
-export function AdminShell({ bundle, tab, meId, days, calendar, drafts, blogSubmissions }: Props) {
+export function AdminShell({ bundle, tab, meId, days, calendar, drafts, formSubmissions, blogSubmissions }: Props) {
   const params = useSearchParams();
 
   const tabs: Array<{ key: TabKey; label: string; count?: number }> = [
-    { key: "submissions", label: "Submissions", count: bundle.pending.length },
+    {
+      key: "content-submissions",
+      label: "Content submissions",
+      count:
+        formSubmissions.length +
+        blogSubmissions.filter((s) => s.status === "pending").length,
+    },
     { key: "events", label: "Events", count: bundle.eventsFull.length },
     { key: "calendar", label: "Calendar", count: calendar.length },
     { key: "drafts", label: "Drafts", count: drafts.filter((d) => d.status === "draft").length },
     { key: "share", label: "Share" },
-    { key: "blog-submissions", label: "Blog submissions", count: blogSubmissions.filter((s) => s.status === "pending").length },
     { key: "members", label: "Members", count: bundle.members.length },
     { key: "signups", label: "Sign-ups", count: bundle.signups.length },
     { key: "rsvps", label: "RSVPs", count: bundle.rsvps.length },
@@ -153,7 +157,13 @@ export function AdminShell({ bundle, tab, meId, days, calendar, drafts, blogSubm
             padding: "34px 28px 80px",
           }}
         >
-          {tab === "submissions" && <SubmissionsTab posts={bundle.pending} />}
+          {tab === "content-submissions" && (
+            <ContentSubmissionsTab
+              formSubmissions={formSubmissions}
+              blogSubmissions={blogSubmissions}
+              members={bundle.members}
+            />
+          )}
           {tab === "events" && (
             <EventsTab
               events={bundle.eventsFull}
@@ -171,9 +181,6 @@ export function AdminShell({ bundle, tab, meId, days, calendar, drafts, blogSubm
           )}
           {tab === "calendar" && <CalendarTab rows={calendar} />}
           {tab === "drafts" && <DraftsTab drafts={drafts} />}
-          {tab === "blog-submissions" && (
-            <BlogSubmissionsTab submissions={blogSubmissions} members={bundle.members} />
-          )}
           {tab === "members" && (
             <MembersTab members={bundle.members} meId={meId} />
           )}

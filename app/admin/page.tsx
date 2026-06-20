@@ -15,13 +15,12 @@ interface PageProps {
 
 export default async function AdminPage({ searchParams }: PageProps) {
   const sp = await searchParams;
-  const tab = (sp.tab ?? "submissions") as
-    | "submissions"
+  const tab = (sp.tab ?? "content-submissions") as
+    | "content-submissions"
     | "events"
     | "share"
     | "calendar"
     | "drafts"
-    | "blog-submissions"
     | "members"
     | "signups"
     | "rsvps"
@@ -158,6 +157,7 @@ export default async function AdminPage({ searchParams }: PageProps) {
         days={days}
         calendar={calendar}
         drafts={drafts}
+        formSubmissions={bundle.pending}
         blogSubmissions={blogSubmissions || []}
       />
     </>
