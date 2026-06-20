@@ -1,7 +1,9 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { Btn } from "@/components/ui/Button";
+import { Icon } from "@/components/ui/Icon";
 import { Tag } from "@/components/ui/Tag";
 import { formatDate, toneForTag } from "@/lib/utils";
 import { downloadCSV } from "@/lib/csv";
@@ -14,7 +16,28 @@ interface Props {
 }
 
 export function RsvpsTab({ rsvps, events }: Props) {
+  const router = useRouter();
   const [grouped, setGrouped] = useState(true);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
+
+  const handleDelete = async (rsvpId: string) => {
+    if (!window.confirm("Delete this RSVP?")) return;
+    setActionLoading(rsvpId);
+    try {
+      const res = await fetch("/api/admin/rsvps", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ action: "delete", rsvpId }),
+      });
+      if (!res.ok) throw new Error("Delete failed");
+      router.refresh();
+    } catch (e) {
+      alert(e instanceof Error ? e.message : "Delete failed");
+    } finally {
+      setActionLoading(null);
+    }
+  };
 
   if (!rsvps.length) {
     return (
@@ -157,7 +180,11 @@ export function RsvpsTab({ rsvps, events }: Props) {
                       {total} going
                     </span>
                   </div>
-                  <RsvpTable rsvps={list} />
+                  <RsvpTable
+                    rsvps={list}
+                    onDelete={handleDelete}
+                    actionLoading={actionLoading}
+                  />
                 </div>
               );
             })}
@@ -172,18 +199,31 @@ export function RsvpsTab({ rsvps, events }: Props) {
             boxShadow: "var(--shadow-sm)",
           }}
         >
-          <FlatRsvpTable rsvps={rsvps} events={events} />
+          <FlatRsvpTable
+          rsvps={rsvps}
+          events={events}
+          onDelete={handleDelete}
+          actionLoading={actionLoading}
+        />
         </div>
       )}
     </div>
   );
 }
 
-function RsvpTable({ rsvps }: { rsvps: RsvpRow[] }) {
+function RsvpTable({
+  rsvps,
+  onDelete,
+  actionLoading,
+}: {
+  rsvps: RsvpRow[];
+  onDelete: (id: string) => void;
+  actionLoading: string | null;
+}) {
   return (
     <div style={{ overflowX: "auto" }}>
       <table
-        style={{ width: "100%", borderCollapse: "collapse", minWidth: 520 }}
+        style={{ width: "100%", borderCollapse: "collapse", minWidth: 620 }}
       >
         <tbody>
           {rsvps.map((r) => (
@@ -229,6 +269,29 @@ function RsvpTable({ rsvps }: { rsvps: RsvpRow[] }) {
               >
                 {formatDate(r.created_at)}
               </td>
+              <td
+                style={{
+                  padding: "12px 10px",
+                  textAlign: "right",
+                }}
+              >
+                <button
+                  onClick={() => onDelete(r.id)}
+                  disabled={actionLoading === r.id}
+                  style={{
+                    background: "none",
+                    border: "none",
+                    cursor: "pointer",
+                    color: "var(--danger)",
+                    fontSize: 13,
+                    padding: "4px 8px",
+                    opacity: actionLoading === r.id ? 0.6 : 1,
+                  }}
+                  title="Delete RSVP"
+                >
+                  <Icon name="trash-2" size={16} />
+                </button>
+              </td>
             </tr>
           ))}
         </tbody>
@@ -240,14 +303,18 @@ function RsvpTable({ rsvps }: { rsvps: RsvpRow[] }) {
 function FlatRsvpTable({
   rsvps,
   events,
+  onDelete,
+  actionLoading,
 }: {
   rsvps: RsvpRow[];
   events: EventRow[];
+  onDelete: (id: string) => void;
+  actionLoading: string | null;
 }) {
   return (
     <div style={{ overflowX: "auto" }}>
       <table
-        style={{ width: "100%", borderCollapse: "collapse", minWidth: 680 }}
+        style={{ width: "100%", borderCollapse: "collapse", minWidth: 780 }}
       >
         <thead>
           <tr
@@ -256,16 +323,16 @@ function FlatRsvpTable({
               borderBottom: "1px solid var(--border)",
             }}
           >
-            {["Name", "Email", "Event", "Guests", "Date"].map((h) => (
+            {["Name", "Email", "Event", "Guests", "Date", ""].map((h) => (
               <th
                 key={h}
                 style={{
-                  textAlign: "left",
+                  textAlign: h === "" ? "right" : "left",
                   padding: "13px 16px",
                   fontFamily: "var(--font-mono)",
                   fontSize: 11,
                   letterSpacing: "0.1em",
-                  textTransform: "uppercase",
+                  textTransform: h === "" ? "none" : "uppercase",
                   color: "var(--fg-subtle)",
                   fontWeight: 700,
                 }}
@@ -328,6 +395,29 @@ function FlatRsvpTable({
                   }}
                 >
                   {formatDate(r.created_at)}
+                </td>
+                <td
+                  style={{
+                    padding: "13px 10px",
+                    textAlign: "right",
+                  }}
+                >
+                  <button
+                    onClick={() => onDelete(r.id)}
+                    disabled={actionLoading === r.id}
+                    style={{
+                      background: "none",
+                      border: "none",
+                      cursor: "pointer",
+                      color: "var(--danger)",
+                      fontSize: 13,
+                      padding: "4px 8px",
+                      opacity: actionLoading === r.id ? 0.6 : 1,
+                    }}
+                    title="Delete RSVP"
+                  >
+                    <Icon name="trash-2" size={16} />
+                  </button>
                 </td>
               </tr>
             );
