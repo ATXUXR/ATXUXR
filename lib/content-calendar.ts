@@ -58,6 +58,14 @@ export const DRAFT_STATUSES = [
 ] as const;
 export type DraftStatus = (typeof DRAFT_STATUSES)[number];
 
+export const CALENDAR_DRAFT_STATUSES = [
+  "draft",
+  "reviewing",
+  "scheduled",
+  "published",
+] as const;
+export type CalendarDraftStatus = (typeof CALENDAR_DRAFT_STATUSES)[number];
+
 export interface CalendarPost {
   id: string;
   pillar: Pillar;
@@ -91,4 +99,35 @@ export interface CalendarDraft {
 export interface CalendarRow {
   post: CalendarPost;
   drafts: CalendarDraft[];
+}
+
+// New draft system types
+export interface CalendarDraftVersion {
+  id: string;
+  draft_id: string;
+  channel: Channel;
+  enabled: boolean;
+  content: string | null;
+  image_url: string | null;
+  image_prompt: string | null;
+  generated_from_main: boolean;
+  last_generated_at: string | null;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CalendarDraftWithVersions {
+  id: string;
+  pillar: Pillar | null;
+  post_type: PostType | null;
+  title: string | null;
+  main_content: string | null;
+  notes: string | null;
+  scheduled_date: string | null;
+  status: CalendarDraftStatus;
+  enabled_channels_count: number;
+  versions: CalendarDraftVersion[];
+  created_at: string;
+  updated_at: string;
 }
