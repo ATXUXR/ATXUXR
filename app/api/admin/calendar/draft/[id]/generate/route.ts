@@ -5,6 +5,48 @@ interface ClaudeMessage {
   content: Array<{ type: string; text: string }>;
 }
 
+// Convert HTML to plain text, preserving structure
+function htmlToPlainText(html: string): string {
+  // Replace block elements with newlines
+  let text = html
+    .replace(/<p>/gi, "")
+    .replace(/<\/p>/gi, "\n")
+    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/<h[1-6][^>]*>/gi, "\n")
+    .replace(/<\/h[1-6]>/gi, "\n")
+    .replace(/<li[^>]*>/gi, "\n• ")
+    .replace(/<\/li>/gi, "")
+    .replace(/<ul[^>]*>/gi, "")
+    .replace(/<\/ul>/gi, "\n")
+    .replace(/<ol[^>]*>/gi, "")
+    .replace(/<\/ol>/gi, "\n")
+    .replace(/<blockquote[^>]*>/gi, "\n> ")
+    .replace(/<\/blockquote>/gi, "\n")
+    .replace(/<strong[^>]*>/gi, "**")
+    .replace(/<\/strong>/gi, "**")
+    .replace(/<em[^>]*>/gi, "_")
+    .replace(/<\/em>/gi, "_")
+    .replace(/<b[^>]*>/gi, "**")
+    .replace(/<\/b>/gi, "**")
+    .replace(/<i[^>]*>/gi, "_")
+    .replace(/<\/i>/gi, "_")
+    .replace(/<a\s+href=["']([^"']*)["'][^>]*>([^<]*)<\/a>/gi, "[$2]($1)")
+    // Remove all other HTML tags
+    .replace(/<[^>]*>/g, "")
+    // Decode HTML entities
+    .replace(/&nbsp;/gi, " ")
+    .replace(/&amp;/gi, "&")
+    .replace(/&lt;/gi, "<")
+    .replace(/&gt;/gi, ">")
+    .replace(/&quot;/gi, '"')
+    .replace(/&#39;/gi, "'")
+    // Clean up multiple newlines
+    .replace(/\n\n+/g, "\n\n")
+    .trim();
+
+  return text;
+}
+
 const CHANNEL_GUIDELINES: Record<string, string> = {
   atxuxr:
     "This is for the ATXUXR blog (austinuxresearchers.com). It should be in-depth, thoughtful, and suitable for a professional research community. Include clear examples and citations. Maintain the warm, plainspoken voice of the community.",
@@ -84,6 +126,9 @@ export async function POST(
   }
 
   try {
+    // Convert HTML content to plain text for Claude
+    const plainTextContent = htmlToPlainText(draft.main_content);
+
     const response = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
       headers: {
@@ -102,7 +147,7 @@ export async function POST(
 ${CHANNEL_GUIDELINES[channel]}
 
 Original content:
-${draft.main_content}
+${plainTextContent}
 
 ${draft.notes ? `Additional context: ${draft.notes}` : ""}
 
