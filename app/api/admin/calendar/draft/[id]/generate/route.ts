@@ -20,8 +20,9 @@ const CHANNEL_GUIDELINES: Record<string, string> = {
 
 export async function POST(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: { id: string } }
 ) {
+  const { params } = context;
   const supabase = await createClient();
 
   // Check admin
