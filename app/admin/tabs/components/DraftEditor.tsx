@@ -12,6 +12,7 @@ import {
   type Channel,
 } from "@/lib/content-calendar";
 import { DraftChannelCard } from "./DraftChannelCard";
+import { RichTextEditor } from "./RichTextEditor";
 
 interface DraftEditorProps {
   draft?: CalendarDraftWithVersions;
@@ -343,7 +344,7 @@ export function DraftEditor({
         }}
       />
 
-      {/* Main content */}
+      {/* Main content - Rich text editor */}
       <label style={{ display: "block", marginBottom: 8 }}>
         <span
           style={{
@@ -357,24 +358,13 @@ export function DraftEditor({
           Main Content (for all channels)
         </span>
       </label>
-      <textarea
-        value={mainContent}
-        onChange={(e) => setMainContent(e.target.value)}
-        placeholder="Write the main content. Channel-specific versions will be generated or customized from this..."
-        style={{
-          width: "100%",
-          minHeight: 200,
-          padding: 12,
-          fontSize: 13,
-          fontFamily: "var(--font-sans)",
-          border: "1px solid var(--border)",
-          borderRadius: "var(--radius-md)",
-          marginBottom: 24,
-          boxSizing: "border-box",
-          resize: "vertical",
-          lineHeight: 1.6,
-        }}
-      />
+      <div style={{ marginBottom: 24 }}>
+        <RichTextEditor
+          value={mainContent}
+          onChange={setMainContent}
+          placeholder="Write the main content. Channel-specific versions will be generated or customized from this..."
+        />
+      </div>
 
       {/* Notes */}
       <label style={{ display: "block", marginBottom: 8 }}>
