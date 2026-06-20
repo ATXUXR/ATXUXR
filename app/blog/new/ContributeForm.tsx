@@ -54,7 +54,6 @@ export function ContributeForm({ me }: Props) {
     setErr(null);
     if (!title.trim()) {
       setErr("Give your post a title.");
-      window.scrollTo({ top: 0, behavior: "smooth" });
       return;
     }
     if (words < 20) {
@@ -239,24 +238,6 @@ export function ContributeForm({ me }: Props) {
             <strong style={{ color: "var(--fg)" }}>{me.name}</strong>
           </div>
         </div>
-
-        {err && (
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 9,
-              fontSize: 14,
-              color: "var(--danger)",
-              background: "var(--danger-bg)",
-              padding: "12px 16px",
-              borderRadius: "var(--radius-md)",
-              marginBottom: 22,
-            }}
-          >
-            <Icon name="alert-circle" size={18} /> {err}
-          </div>
-        )}
 
         <div style={{ display: "flex", flexDirection: "column", gap: 22 }}>
           {/* COVER */}
@@ -451,9 +432,54 @@ export function ContributeForm({ me }: Props) {
             </Btn>
           </div>
         </div>
+
+        {/* Error toast at bottom */}
+        {err && (
+          <div
+            style={{
+              position: "fixed",
+              bottom: 20,
+              left: 20,
+              right: 20,
+              maxWidth: 500,
+              display: "flex",
+              alignItems: "center",
+              gap: 12,
+              fontSize: 14,
+              color: "white",
+              background: "var(--danger)",
+              padding: "14px 18px",
+              borderRadius: "var(--radius-md)",
+              boxShadow: "0 10px 25px rgba(0,0,0,0.2)",
+              zIndex: 1000,
+              animation: "slideUp 0.3s ease-out",
+            }}
+          >
+            <Icon name="alert-circle" size={18} style={{ flexShrink: 0 }} />
+            <span>{err}</span>
+          </div>
+        )}
       </div>
     </section>
   );
+}
+
+// Add slide animation
+if (typeof document !== "undefined") {
+  const style = document.createElement("style");
+  style.textContent = `
+    @keyframes slideUp {
+      from {
+        transform: translateY(100%);
+        opacity: 0;
+      }
+      to {
+        transform: translateY(0);
+        opacity: 1;
+      }
+    }
+  `;
+  if (document.head) document.head.appendChild(style);
 }
 
 function Field({
