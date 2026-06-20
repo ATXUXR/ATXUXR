@@ -447,26 +447,33 @@ export function DraftEditor({
       </div>
 
       {/* Action buttons */}
-      {draftIdRef.current && (
-        <div
-          style={{
-            display: "flex",
-            gap: 8,
-            marginTop: 24,
-            paddingTop: 24,
-            borderTop: "1px solid var(--border)",
-          }}
-        >
-          <Btn onClick={() => onPublish?.(draftIdRef.current!)}>
-            <Icon name="send" size={14} style={{ marginRight: 4 }} />
-            Schedule & Publish
-          </Btn>
-          <Btn variant="secondary">
-            <Icon name="trash-2" size={14} style={{ marginRight: 4 }} />
-            Delete Draft
-          </Btn>
-        </div>
-      )}
+      <div
+        style={{
+          display: "flex",
+          gap: 8,
+          marginTop: 24,
+          paddingTop: 24,
+          borderTop: "1px solid var(--border)",
+        }}
+      >
+        <Btn onClick={() => handleAutoSave()} disabled={isSaving || (!title && !mainContent)}>
+          <Icon name="save" size={14} style={{ marginRight: 4 }} />
+          {isSaving ? "Saving..." : "Save Draft"}
+        </Btn>
+
+        {draftIdRef.current && (
+          <>
+            <Btn onClick={() => onPublish?.(draftIdRef.current!)}>
+              <Icon name="send" size={14} style={{ marginRight: 4 }} />
+              Schedule & Publish
+            </Btn>
+            <Btn variant="secondary">
+              <Icon name="trash-2" size={14} style={{ marginRight: 4 }} />
+              Delete Draft
+            </Btn>
+          </>
+        )}
+      </div>
     </div>
   );
 }
