@@ -35,6 +35,7 @@ export function DraftChannelCard({
   const [isSaving, setIsSaving] = useState(false);
   const [saveTimeout, setSaveTimeout] = useState<NodeJS.Timeout | null>(null);
   const [selectedText, setSelectedText] = useState<string>("");
+  const [error, setError] = useState<string | null>(null);
 
   const enabled = version?.enabled ?? false;
   const generatedFromMain = version?.generated_from_main ?? false;
@@ -70,6 +71,17 @@ export function DraftChannelCard({
   const handleTextSelection = () => {
     const selected = window.getSelection()?.toString() || "";
     setSelectedText(selected);
+  };
+
+  const handleGenerateWithError = async () => {
+    try {
+      setError(null);
+      await onGenerateContent();
+    } catch (err) {
+      const errorMsg = err instanceof Error ? err.message : "Failed to generate content";
+      setError(errorMsg);
+      console.error("Generation error:", err);
+    }
   };
 
   return (
@@ -172,6 +184,24 @@ export function DraftChannelCard({
               }}
             />
 
+            {/* Error message */}
+            {error && (
+              <div
+                style={{
+                  marginTop: 8,
+                  padding: 10,
+                  borderRadius: "var(--radius-md)",
+                  background: "var(--red-50)",
+                  border: "1px solid var(--red-200)",
+                  color: "var(--red-700)",
+                  fontSize: 12,
+                  lineHeight: 1.4,
+                }}
+              >
+                <strong>Generation failed:</strong> {error}
+              </div>
+            )}
+
             {/* Content toolbar */}
             <div
               style={{
@@ -198,7 +228,7 @@ export function DraftChannelCard({
 
               {mainContent && (
                 <Btn
-                  onClick={onGenerateContent}
+                  onClick={handleGenerateWithError}
                   disabled={isGenerating}
                   variant="secondary"
                   size="sm"
