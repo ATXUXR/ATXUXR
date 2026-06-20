@@ -326,16 +326,23 @@ export function RichTextEditor({
       </div>
 
       {/* Editor */}
-      <EditorContent
-        editor={editor}
+      <div
         style={{
-          padding: 16,
-          minHeight: 240,
-          fontSize: 14,
-          lineHeight: 1.6,
-          color: "var(--fg)",
+          minHeight: 400,
+          maxHeight: 600,
+          overflowY: "auto",
         }}
-      />
+      >
+        <EditorContent
+          editor={editor}
+          style={{
+            padding: 16,
+            fontSize: 14,
+            lineHeight: 1.8,
+            color: "var(--fg)",
+          }}
+        />
+      </div>
     </div>
   );
 }
