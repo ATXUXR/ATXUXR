@@ -126,9 +126,9 @@ async function generateViaImagen(prompt: string): Promise<string> {
 
   try {
     // Dynamic import to avoid dependency issues if not configured
-    const { ImageGenerationServiceClient } = await import(
-      "@google-cloud/aiplatform"
-    );
+    const aiplatform = await import("@google-cloud/aiplatform");
+    const { v1beta1 } = aiplatform;
+    const { ImageGenerationServiceClient } = v1beta1;
 
     const client = new ImageGenerationServiceClient({
       projectId: process.env.GOOGLE_CLOUD_PROJECT_ID,
