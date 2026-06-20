@@ -40,7 +40,7 @@ interface Props {
   blogSubmissions: BlogSubmission[];
 }
 
-export function AdminShell({ bundle, tab, meId, days, calendar }: Props) {
+export function AdminShell({ bundle, tab, meId, days, calendar, blogSubmissions }: Props) {
   const params = useSearchParams();
 
   const tabs: Array<{ key: TabKey; label: string; count?: number }> = [
