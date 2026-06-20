@@ -88,7 +88,7 @@ export function AddToCalendarModal({
       <div onClick={(e) => e.stopPropagation()} style={{ background: "var(--bg)", borderRadius: "var(--radius-lg)", padding: 32, maxWidth: 600, width: "90%", maxHeight: "80vh", overflowY: "auto" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 24 }}>
           <h2 style={{ margin: 0, fontSize: 20, fontWeight: 700 }}>Schedule Content</h2>
-          <Btn variant="ghost" icon="x" onClick={onClose} />
+          <Btn variant="ghost" icon="x" onClick={onClose}>Close</Btn>
         </div>
 
         <div style={{ marginBottom: 24 }}>
