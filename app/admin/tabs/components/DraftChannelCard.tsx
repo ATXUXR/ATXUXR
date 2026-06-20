@@ -16,7 +16,7 @@ interface DraftChannelCardProps {
   onToggle: (enabled: boolean) => void;
   onUpdateContent: (content: string, notes: string) => void;
   onGenerateContent: () => Promise<void>;
-  onImageUpload: (url: string) => void;
+  onImageUpload?: (url: string) => void;
   isGenerating?: boolean;
 }
 

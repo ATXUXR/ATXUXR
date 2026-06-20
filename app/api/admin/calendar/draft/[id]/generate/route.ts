@@ -20,8 +20,9 @@ const CHANNEL_GUIDELINES: Record<string, string> = {
 
 export async function POST(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params;
   const supabase = await createClient();
 
   // Check admin
@@ -56,7 +57,7 @@ export async function POST(
   const { data: draft, error: draftError } = await supabase
     .from("calendar_drafts")
     .select("*")
-    .eq("id", params.id)
+    .eq("id", id)
     .single();
 
   if (draftError || !draft) {
@@ -134,7 +135,7 @@ Please generate the adapted content. Return ONLY the adapted content without any
     const { data: existing } = await supabase
       .from("calendar_draft_versions")
       .select("id")
-      .eq("draft_id", params.id)
+      .eq("draft_id", id)
       .eq("channel", channel)
       .single();
 
@@ -149,7 +150,7 @@ Please generate the adapted content. Return ONLY the adapted content without any
           last_generated_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
         })
-        .eq("draft_id", params.id)
+        .eq("draft_id", id)
         .eq("channel", channel)
         .select()
         .single();
@@ -167,7 +168,7 @@ Please generate the adapted content. Return ONLY the adapted content without any
       const { data: created, error: createError } = await supabase
         .from("calendar_draft_versions")
         .insert({
-          draft_id: params.id,
+          draft_id: id,
           channel,
           enabled: true,
           content: generatedContent,

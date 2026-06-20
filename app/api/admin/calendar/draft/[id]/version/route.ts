@@ -3,8 +3,9 @@ import { NextRequest, NextResponse } from "next/server";
 
 export async function POST(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params;
   const supabase = await createClient();
 
   // Check admin
@@ -40,7 +41,7 @@ export async function POST(
   const { data: existing } = await supabase
     .from("calendar_draft_versions")
     .select("id")
-    .eq("draft_id", params.id)
+    .eq("draft_id", id)
     .eq("channel", channel)
     .single();
 
@@ -58,7 +59,7 @@ export async function POST(
         notes,
         updated_at: new Date().toISOString(),
       })
-      .eq("draft_id", params.id)
+      .eq("draft_id", id)
       .eq("channel", channel)
       .select()
       .single();
@@ -73,7 +74,7 @@ export async function POST(
     const { data, error } = await supabase
       .from("calendar_draft_versions")
       .insert({
-        draft_id: params.id,
+        draft_id: id,
         channel,
         enabled,
         content,

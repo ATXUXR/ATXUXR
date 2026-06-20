@@ -3,8 +3,9 @@ import { NextRequest, NextResponse } from "next/server";
 
 export async function GET(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params;
   const supabase = await createClient();
 
   // Check admin
@@ -29,7 +30,7 @@ export async function GET(
   const { data: draft, error: draftError } = await supabase
     .from("calendar_drafts")
     .select("*")
-    .eq("id", params.id)
+    .eq("id", id)
     .single();
 
   if (draftError) {
@@ -42,7 +43,7 @@ export async function GET(
   const { data: versions, error: versionsError } = await supabase
     .from("calendar_draft_versions")
     .select("*")
-    .eq("draft_id", params.id)
+    .eq("draft_id", id)
     .order("channel");
 
   if (versionsError) {
@@ -60,8 +61,9 @@ export async function GET(
 
 export async function DELETE(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params;
   const supabase = await createClient();
 
   // Check admin
@@ -85,7 +87,7 @@ export async function DELETE(
   const { error } = await supabase
     .from("calendar_drafts")
     .delete()
-    .eq("id", params.id);
+    .eq("id", id);
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 400 });
