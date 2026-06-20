@@ -1,72 +1,49 @@
-import { NextRequest, NextResponse } from "next/server";
-import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
-import { sanitizeBody } from "@/lib/sanitize";
-import { readMinutes, wordCount } from "@/lib/utils";
+import { NextResponse } from "next/server";
 
-const PostInput = z.object({
-  title: z.string().min(1, "Title is required").max(200),
-  excerpt: z.string().min(1, "Summary is required").max(400),
-  body: z.string().min(1, "Body is required"),
-  tags: z.array(z.string().min(1).max(60)).max(8).default([]),
-  cover: z.string().url().nullable().optional(),
-});
-
-export async function POST(req: NextRequest) {
-  if (
-    !process.env.NEXT_PUBLIC_SUPABASE_URL ||
-    !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-  ) {
-    return NextResponse.json({ error: "Auth not configured" }, { status: 503 });
-  }
-
-  let json: unknown;
+export async function POST(request: Request) {
   try {
-    json = await req.json();
-  } catch {
-    return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
-  }
-  const parsed = PostInput.safeParse(json);
-  if (!parsed.success) {
-    return NextResponse.json(
-      { error: parsed.error.issues[0]?.message ?? "Invalid input" },
-      { status: 400 },
-    );
-  }
+    const body = await request.json();
+    const { title, excerpt, body: content, tags, cover } = body;
 
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) {
-    return NextResponse.json({ error: "Sign in to contribute" }, { status: 401 });
-  }
+    const supabase = await createClient();
 
-  const cleanBody = sanitizeBody(parsed.data.body);
-  if (wordCount(cleanBody) < 20) {
-    return NextResponse.json(
-      { error: "Write a bit more before submitting (at least ~20 words)." },
-      { status: 400 },
-    );
-  }
+    // Get current user
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
 
-  const { data, error } = await supabase
-    .from("posts")
-    .insert({
-      author_id: user.id,
-      title: parsed.data.title.trim(),
-      excerpt: parsed.data.excerpt.trim(),
-      body: cleanBody,
-      tags: parsed.data.tags,
-      cover: parsed.data.cover ?? null,
-      read_mins: readMinutes(cleanBody),
-      status: "pending",
-    })
-    .select()
-    .single();
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
 
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 400 });
+    // Insert the post
+    const { data: post, error } = await supabase
+      .from("posts")
+      .insert({
+        title,
+        excerpt,
+        body: content,
+        cover,
+        tags: tags || [],
+        author_id: user.id,
+        status: "pending", // Posts are pending until approved by admin
+      })
+      .select()
+      .single();
+
+    if (error) {
+      console.error("Post creation error:", error);
+      return NextResponse.json(
+        { error: error.message || "Failed to create post" },
+        { status: 500 }
+      );
+    }
+
+    return NextResponse.json(post, { status: 201 });
+  } catch (err) {
+    console.error("Post submission error:", err);
+    const message = err instanceof Error ? err.message : "Internal server error";
+    return NextResponse.json({ error: message }, { status: 500 });
   }
-  return NextResponse.json({ post: data });
 }

@@ -3,7 +3,8 @@
 import { EditorContent, useEditor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Link from "@tiptap/extension-link";
-import { useEffect } from "react";
+import Image from "@tiptap/extension-image";
+import { useEffect, useRef } from "react";
 import { Icon } from "@/components/ui/Icon";
 
 interface RichEditorProps {
@@ -56,6 +57,8 @@ function ToolbarBtn({
 }
 
 export function RichEditor({ value, onChange, placeholder }: RichEditorProps) {
+  const imageInputRef = useRef<HTMLInputElement>(null);
+
   const editor = useEditor({
     extensions: [
       StarterKit.configure({
@@ -65,6 +68,10 @@ export function RichEditor({ value, onChange, placeholder }: RichEditorProps) {
         openOnClick: false,
         autolink: true,
         HTMLAttributes: { rel: "noopener noreferrer", target: "_blank" },
+      }),
+      Image.configure({
+        inline: false,
+        allowBase64: true,
       }),
     ],
     content: value || "",
@@ -195,6 +202,31 @@ export function RichEditor({ value, onChange, placeholder }: RichEditorProps) {
           onClick={() => editor.chain().focus().toggleBlockquote().run()}
         />
         <ToolbarBtn title="Link" icon="link" onClick={setLink} />
+        <ToolbarBtn
+          title="Insert image"
+          icon="image"
+          onClick={() => imageInputRef.current?.click()}
+        />
+        <input
+          ref={imageInputRef}
+          type="file"
+          accept="image/*"
+          style={{ display: "none" }}
+          onChange={(e) => {
+            const file = e.target.files?.[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = (event) => {
+              const src = event.target?.result as string;
+              editor
+                .chain()
+                .focus()
+                .setImage({ src })
+                .run();
+            };
+            reader.readAsDataURL(file);
+          }}
+        />
         <span
           style={{
             width: 1,
