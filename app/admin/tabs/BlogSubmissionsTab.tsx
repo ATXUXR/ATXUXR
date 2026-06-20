@@ -235,7 +235,7 @@ function SubmissionDrawer({
         onClick={(e) => e.stopPropagation()}
         style={{
           background: "var(--bg)",
-          width: "min(720px, 100%)",
+          width: "min(1000px, 90vw)",
           height: "100%",
           overflowY: "auto",
           boxShadow: "-24px 0 64px rgba(0,0,0,0.18)",
@@ -308,11 +308,9 @@ function SubmissionDrawer({
                 fontSize: 14,
                 lineHeight: 1.6,
                 color: "var(--fg)",
-                whiteSpace: "pre-wrap",
               }}
-            >
-              {submission.body_md}
-            </div>
+              dangerouslySetInnerHTML={{ __html: submission.body_md }}
+            />
           </div>
 
           {submission.summary && (
