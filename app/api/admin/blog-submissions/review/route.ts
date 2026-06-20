@@ -1,90 +1,50 @@
-import { NextResponse } from "next/server";
-import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
-import {
-  createServiceClient,
-  isServiceClientConfigured,
-} from "@/lib/supabase/service";
+import { NextResponse } from "next/server";
 
-export const runtime = "nodejs";
-export const dynamic = "force-dynamic";
-
-const Schema = z.object({
-  id: z.string().uuid(),
-  action: z.enum(["approve", "reject"]),
-  reason: z.string().optional(),
-});
-
-async function requireAdmin() {
-  if (
-    !process.env.NEXT_PUBLIC_SUPABASE_URL ||
-    !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-  ) {
-    return { ok: false as const, status: 503, error: "Not configured" };
-  }
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return { ok: false as const, status: 401, error: "Sign in" };
-  const { data: member } = await supabase
-    .from("members")
-    .select("admin")
-    .eq("id", user.id)
-    .maybeSingle();
-  if (!member?.admin)
-    return { ok: false as const, status: 403, error: "Admins only" };
-  return { ok: true as const, supabase, userId: user.id };
-}
-
-export async function POST(req: Request) {
-  const gate = await requireAdmin();
-  if (!gate.ok)
-    return NextResponse.json({ error: gate.error }, { status: gate.status });
-
-  let json: unknown;
+export async function POST(request: Request) {
   try {
-    json = await req.json();
-  } catch {
-    return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
-  }
-  const parsed = Schema.safeParse(json);
-  if (!parsed.success) {
-    return NextResponse.json(
-      { error: "Invalid input", issues: parsed.error.issues },
-      { status: 400 }
-    );
-  }
-  const { id, action, reason } = parsed.data;
+    const { id, action, reason } = await request.json();
+    const supabase = await createClient();
 
-  if (!isServiceClientConfigured()) {
-    return NextResponse.json(
-      { error: "Service role not configured" },
-      { status: 503 }
-    );
-  }
-  const service = createServiceClient();
+    // Check if user is admin
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
 
-  try {
-    const update = {
-      status: action === "approve" ? "approved" : "rejected",
-      rejection_reason: action === "reject" ? reason || null : null,
-      reviewed_at: new Date().toISOString(),
-      reviewed_by: gate.userId,
-    };
-
-    const { error } = await service
-      .from("blog_submissions")
-      .update(update)
-      .eq("id", id);
-
-    if (error) {
-      throw new Error(error.message);
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    return NextResponse.json({ ok: true });
+    // Update post status based on action
+    let newStatus = "pending";
+    if (action === "approve") {
+      newStatus = "under_consideration"; // Move to backlog, not published
+    } else if (action === "reject") {
+      newStatus = "rejected";
+    }
+
+    const { data: post, error } = await supabase
+      .from("posts")
+      .update({ 
+        status: newStatus,
+        ...(action === "reject" && { rejection_reason: reason })
+      })
+      .eq("id", id)
+      .select()
+      .single();
+
+    if (error) {
+      console.error("Review error:", error);
+      return NextResponse.json(
+        { error: error.message || "Failed to review post" },
+        { status: 500 }
+      );
+    }
+
+    return NextResponse.json(post);
   } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err);
-    return NextResponse.json({ error: msg }, { status: 400 });
+    console.error("Review endpoint error:", err);
+    const message = err instanceof Error ? err.message : "Internal server error";
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }
