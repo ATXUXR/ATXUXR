@@ -350,7 +350,7 @@ export function DraftEditor({
           style={{
             fontSize: 12,
             fontWeight: 700,
-            color: "var(--fg-muted)",
+            color: "var(--fg)",
             textTransform: "uppercase",
             letterSpacing: "0.5px",
           }}
