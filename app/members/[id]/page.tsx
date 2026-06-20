@@ -126,6 +126,8 @@ export default async function MemberProfilePage({ params }: PageProps) {
               borderRadius: "var(--radius-xl)",
               boxShadow: "var(--shadow-md)",
               padding: "0 32px 30px",
+              position: "relative",
+              zIndex: 10,
             }}
           >
             <div style={{ marginTop: -44 }}>
