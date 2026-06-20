@@ -64,15 +64,39 @@ export function BlogSubmissionsTab({ submissions, members }: Props) {
   const handleAddToCalendar = async (id: string) => {
     setActionLoading(id);
     try {
-      const res = await fetch("/api/admin/blog-submissions/add-to-calendar", {
+      // Create a new draft from the approved blog submission
+      const submission = submissions.find((s) => s.id === id);
+      if (!submission) throw new Error("Submission not found");
+
+      // First, create a draft in the calendar_drafts table
+      const createDraftRes = await fetch("/api/admin/calendar/drafts", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ id }),
+        body: JSON.stringify({
+          title: submission.title,
+          content: submission.body_md,
+          pillar: submission.pillar,
+          fromBlogSubmission: id,
+        }),
       });
-      if (!res.ok) {
-        const d = await res.json().catch(() => ({}));
-        throw new Error(d?.error || "Add to calendar failed");
+
+      if (!createDraftRes.ok) {
+        const d = await createDraftRes.json().catch(() => ({}));
+        throw new Error(d?.error || "Failed to create calendar draft");
       }
+
+      // Then mark the submission as moved to calendar
+      const approveRes = await fetch("/api/admin/blog-submissions/review", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ id, action: "approve" }),
+      });
+
+      if (!approveRes.ok) {
+        const d = await approveRes.json().catch(() => ({}));
+        throw new Error(d?.error || "Failed to update submission");
+      }
+
       router.refresh();
       setOpen(null);
     } finally {

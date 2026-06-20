@@ -13,6 +13,7 @@ import { EventsTab } from "./tabs/EventsTab";
 import { ShareTab } from "./tabs/ShareTab";
 import { CalendarTab } from "./tabs/CalendarTab";
 import { DraftsTab } from "./tabs/DraftsTab";
+import { ScheduleTabEnhanced } from "./tabs/ScheduleTabEnhanced";
 import { ContentSubmissionsTab, type BlogSubmission } from "./tabs/ContentSubmissionsTab";
 import { AnalyticsTab } from "./tabs/AnalyticsTab";
 import type { CalendarRow, CalendarDraftWithVersions } from "@/lib/content-calendar";
@@ -22,6 +23,7 @@ type TabKey =
   | "events"
   | "share"
   | "calendar"
+  | "schedule"
   | "drafts"
   | "members"
   | "signups"
@@ -55,6 +57,7 @@ export function AdminShell({ bundle, tab, meId, days, calendar, drafts, formSubm
     },
     { key: "events", label: "Events", count: bundle.eventsFull.length },
     { key: "calendar", label: "Calendar", count: calendar.length },
+    { key: "schedule", label: "6M Schedule" },
     { key: "drafts", label: "Drafts", count: drafts.filter((d) => d.status === "draft").length },
     { key: "share", label: "Announcements" },
     { key: "members", label: "Members", count: bundle.members.length },
@@ -181,6 +184,7 @@ export function AdminShell({ bundle, tab, meId, days, calendar, drafts, formSubm
             />
           )}
           {tab === "calendar" && <CalendarTab rows={calendar} />}
+          {tab === "schedule" && <ScheduleTabEnhanced />}
           {tab === "drafts" && <DraftsTab drafts={drafts} />}
           {tab === "members" && (
             <MembersTab members={bundle.members} meId={meId} />
