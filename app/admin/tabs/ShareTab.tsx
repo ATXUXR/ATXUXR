@@ -18,11 +18,12 @@ interface Props {
   publishedPosts: PostWithAuthor[];
   upcomingEvents: EventFull[];
   socialPosts: SocialPostRow[];
+  members?: any[];
 }
 
 const SITE_URL = "https://atxuxr.com";
 
-export function ShareTab({ publishedPosts, upcomingEvents, socialPosts }: Props) {
+export function ShareTab({ publishedPosts, upcomingEvents, socialPosts, members = [] }: Props) {
   const [content, setContent] = useState<ShareContent | null>(null);
   const [sourceId, setSourceId] = useState<string | null>(null);
 
@@ -83,6 +84,18 @@ export function ShareTab({ publishedPosts, upcomingEvents, socialPosts }: Props)
       meta: p.author?.name ? `By ${p.author.name}` : undefined,
     });
     setSourceId(p.id);
+  };
+
+  const openMemberMention = (m: any) => {
+    const announcement = `Shout out to ${m.name} for their contributions to the community!`;
+    setContent({
+      kind: "announcement",
+      title: `Spotlight: ${m.name}`,
+      body: announcement,
+      url: SITE_URL,
+      meta: m.email ? `${m.email}` : undefined,
+    });
+    setSourceId(m.id);
   };
 
   const upcoming = useMemo(
@@ -174,7 +187,29 @@ export function ShareTab({ publishedPosts, upcomingEvents, socialPosts }: Props)
       </section>
 
       <section style={sectionStyle}>
-        <SectionHeader title="Share history" />
+        <SectionHeader title="Mention a community member" />
+        <p style={hintStyle}>
+          Spotlight a member with a quick shout-out announcement to the community.
+        </p>
+        {members.length === 0 ? (
+          <p style={hintStyle}>No members yet.</p>
+        ) : (
+          <div style={{ display: "grid", gap: 10 }}>
+            {members.slice(0, 8).map((m) => (
+              <Row
+                key={m.id}
+                title={m.name}
+                meta={m.email}
+                tag={m.admin ? "Admin" : undefined}
+                onShare={() => openMemberMention(m)}
+              />
+            ))}
+          </div>
+        )}
+      </section>
+
+      <section style={sectionStyle}>
+        <SectionHeader title="Announcement history" />
         {socialPosts.length === 0 ? (
           <p style={hintStyle}>Nothing shared yet.</p>
         ) : (

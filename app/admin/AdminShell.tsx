@@ -56,7 +56,7 @@ export function AdminShell({ bundle, tab, meId, days, calendar, drafts, formSubm
     { key: "events", label: "Events", count: bundle.eventsFull.length },
     { key: "calendar", label: "Calendar", count: calendar.length },
     { key: "drafts", label: "Drafts", count: drafts.filter((d) => d.status === "draft").length },
-    { key: "share", label: "Share" },
+    { key: "share", label: "Announcements" },
     { key: "members", label: "Members", count: bundle.members.length },
     { key: "signups", label: "Sign-ups", count: bundle.signups.length },
     { key: "rsvps", label: "RSVPs", count: bundle.rsvps.length },
@@ -177,6 +177,7 @@ export function AdminShell({ bundle, tab, meId, days, calendar, drafts, formSubm
               publishedPosts={bundle.published}
               upcomingEvents={bundle.eventsFull}
               socialPosts={bundle.socialPosts}
+              members={bundle.members}
             />
           )}
           {tab === "calendar" && <CalendarTab rows={calendar} />}
