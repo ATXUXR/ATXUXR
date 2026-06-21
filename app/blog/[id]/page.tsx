@@ -133,7 +133,7 @@ export default async function ArticlePage({ params }: PageProps) {
   const related = await getRelatedPosts(post);
   const articleUrl = `${SITE_URL}/blog/${post.id}`;
 
-  const currentMember = (myMemberRes as { data: { id: string; name: string; photo: string | null } | null })
+  const currentMember = (myMemberRes as { data: { id: string; name: string; photo: string | null; admin?: boolean } | null })
     .data;
 
   return (
