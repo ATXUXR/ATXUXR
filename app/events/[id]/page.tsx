@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { createClient } from "@/lib/supabase/server";
 import { notFound } from "next/navigation";
 import { KIND_TONE } from "@/lib/events";
 import { getPublicEvent, listPublicEvents } from "@/lib/event-fetch";
@@ -10,6 +11,7 @@ import { Eyebrow } from "@/components/ui/Eyebrow";
 import { EventRowFromPublic } from "@/components/EventRow";
 import { MapEmbed } from "@/components/MapEmbed";
 import { RSVPCard } from "./RSVPCard";
+import { AdminEventsToolbar } from "@/components/AdminEventsToolbar";
 
 interface Props {
   params: Promise<{ id: string }>;
@@ -60,6 +62,13 @@ export default async function EventDetailPage({ params }: Props) {
   const e = await getPublicEvent(id);
   if (!e) notFound();
 
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  let isAdmin = false;
+  if (user) {
+    const { data: member } = await supabase.from("members").select("admin").eq("id", user.id).maybeSingle();
+    isAdmin = Boolean(member?.admin);
+  }
   const tone = KIND_TONE[e.kind];
   const open = e.status === "open";
   const cancelled = e.status === "cancelled";
@@ -328,6 +337,8 @@ export default async function EventDetailPage({ params }: Props) {
               ))}
             </div>
           </div>
+        <AdminEventsToolbar eventId={e.id} isAdmin={isAdmin} />
+
         </section>
       )}
     </>

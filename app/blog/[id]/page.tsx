@@ -14,6 +14,7 @@ import { Comments, type CommentRecord } from "@/components/Comments";
 import { ViewTracker } from "@/components/ViewTracker";
 import { formatDate, toneForTag } from "@/lib/utils";
 import { getPostById, getRelatedPosts } from "@/lib/posts";
+import { AdminBlogToolbar } from "@/components/AdminBlogToolbar";
 
 interface PageProps {
   params: Promise<{ id: string }>;
@@ -96,7 +97,7 @@ export default async function ArticlePage({ params }: PageProps) {
     user
       ? supabase
           .from("members")
-          .select("id, name, photo")
+          .select("id, name, photo, admin")
           .eq("id", user.id)
           .maybeSingle()
       : Promise.resolve({ data: null }),
@@ -381,6 +382,8 @@ export default async function ArticlePage({ params }: PageProps) {
             </div>
           </div>
         )}
+
+        <AdminBlogToolbar postId={post.id} isAdmin={Boolean(currentMember?.admin)} />
 
         {/* COMMENTS */}
         <Comments
