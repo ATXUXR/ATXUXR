@@ -7,18 +7,21 @@ import type { PublicEvent } from "@/lib/event-fetch";
 import { Tag } from "./ui/Tag";
 import { Icon } from "./ui/Icon";
 import { Btn } from "./ui/Button";
+import { AdminCardToolbar } from "./AdminCardToolbar";
 
 interface EventRowProps {
   e: AtxEvent;
+  isAdmin?: boolean;
 }
 
 interface EventRowFromPublicProps {
   e: PublicEvent;
+  isAdmin?: boolean;
 }
 
 /** Adapts a PublicEvent (DB or legacy) into the legacy AtxEvent shape for
  *  display in the EventRow card. */
-export function EventRowFromPublic({ e }: EventRowFromPublicProps) {
+export function EventRowFromPublic({ e, isAdmin = false }: EventRowFromPublicProps) {
   const adapted: AtxEvent = {
     id: e.routeId,
     day: e.day,
@@ -31,16 +34,17 @@ export function EventRowFromPublic({ e }: EventRowFromPublicProps) {
     status: e.status,
     desc: e.description,
   };
-  return <EventRow e={adapted} />;
+  return <EventRow e={adapted} isAdmin={isAdmin} />;
 }
 
-export function EventRow({ e }: EventRowProps) {
+export function EventRow({ e, isAdmin = false }: EventRowProps) {
   const router = useRouter();
   const tone = KIND_TONE[e.kind];
   const open = e.status === "open";
   const href = `/events/${e.id}`;
 
   return (
+    <div style={{ position: "relative" }}>
     <article
       onClick={() => router.push(href)}
       style={{
@@ -173,5 +177,7 @@ export function EventRow({ e }: EventRowProps) {
         </Link>
       </div>
     </article>
+      <AdminCardToolbar itemId={e.id} itemType="event" isAdmin={isAdmin} />
+    </div>
   );
 }

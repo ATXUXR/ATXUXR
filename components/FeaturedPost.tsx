@@ -6,16 +6,20 @@ import { PostCover } from "@/components/ui/PostCover";
 import { Tag } from "@/components/ui/Tag";
 import { Icon } from "@/components/ui/Icon";
 import { Byline } from "@/components/Byline";
+import { AdminCardToolbar } from "@/components/AdminCardToolbar";
 import { toneForTag } from "@/lib/utils";
 import type { PostWithAuthor } from "@/lib/posts";
 
 interface Props {
   post: PostWithAuthor;
+  isAdmin?: boolean;
+  showStatus?: boolean;
 }
 
-export function FeaturedPost({ post }: Props) {
+export function FeaturedPost({ post, isAdmin = false, showStatus = false }: Props) {
   const [h, setH] = useState(false);
   return (
+    <div style={{ position: "relative" }}>
     <Link
       href={`/blog/${post.id}`}
       onMouseEnter={() => setH(true)}
@@ -118,5 +122,12 @@ export function FeaturedPost({ post }: Props) {
         </div>
       </div>
     </Link>
+      <AdminCardToolbar
+        itemId={post.id}
+        itemType="post"
+        isAdmin={isAdmin}
+        status={post.status}
+      />
+    </div>
   );
 }

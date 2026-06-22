@@ -7,7 +7,7 @@ import type { AtxEvent, EventKind } from "@/lib/events";
 type Filter = "ALL" | EventKind;
 const KINDS: Filter[] = ["ALL", "CONNECT", "REFLECT", "LEARN"];
 
-export function EventsList({ events }: { events: AtxEvent[] }) {
+export function EventsList({ events, isAdmin = false }: { events: AtxEvent[]; isAdmin?: boolean }) {
   const [filter, setFilter] = useState<Filter>("ALL");
   const list =
     filter === "ALL" ? events : events.filter((e) => e.kind === filter);
@@ -50,7 +50,7 @@ export function EventsList({ events }: { events: AtxEvent[] }) {
         </div>
         <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
           {list.map((e) => (
-            <EventRow key={e.id} e={e} />
+            <EventRow key={e.id} e={e} isAdmin={isAdmin} />
           ))}
         </div>
       </div>

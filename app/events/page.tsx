@@ -3,6 +3,7 @@ import { Eyebrow } from "@/components/ui/Eyebrow";
 import { EventTypes } from "@/components/EventTypes";
 import { EventsList } from "./EventsList";
 import { listPublicEvents } from "@/lib/event-fetch";
+import { createClient } from "@/lib/supabase/server";
 
 export const metadata: Metadata = {
   title: "Events",
@@ -27,6 +28,27 @@ export default async function EventsPage() {
     status: e.status,
     desc: e.description,
   }));
+
+  // Check admin status.
+  let isAdmin = false;
+  if (
+    process.env.NEXT_PUBLIC_SUPABASE_URL &&
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+  ) {
+    const supabase = await createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (user) {
+      const { data: member } = await supabase
+        .from("members")
+        .select("admin")
+        .eq("id", user.id)
+        .maybeSingle();
+      isAdmin = Boolean(member?.admin);
+    }
+  }
   return (
     <>
       <section
@@ -71,7 +93,7 @@ export default async function EventsPage() {
 
       <EventTypes />
 
-      <EventsList events={legacy} />
+      <EventsList events={legacy} isAdmin={isAdmin} />
     </>
   );
 }

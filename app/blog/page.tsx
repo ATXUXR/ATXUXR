@@ -24,8 +24,9 @@ export default async function BlogPage({ searchParams }: PageProps) {
     getAllPublishedTags(),
   ]);
 
-  // Check signed-in state — affects the Contribute CTA target.
+  // Check signed-in state & admin status.
   let signedIn = false;
+  let isAdmin = false;
   if (
     process.env.NEXT_PUBLIC_SUPABASE_URL &&
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
@@ -35,6 +36,15 @@ export default async function BlogPage({ searchParams }: PageProps) {
       data: { user },
     } = await supabase.auth.getUser();
     signedIn = Boolean(user);
+
+    if (user) {
+      const { data: member } = await supabase
+        .from("members")
+        .select("admin")
+        .eq("id", user.id)
+        .maybeSingle();
+      isAdmin = Boolean(member?.admin);
+    }
   }
 
   const filtering = Boolean(q) || Boolean(tag);
@@ -149,7 +159,7 @@ export default async function BlogPage({ searchParams }: PageProps) {
             <>
               {featured && (
                 <div style={{ marginBottom: 34 }}>
-                  <FeaturedPost post={featured} />
+                  <FeaturedPost post={featured} isAdmin={isAdmin} showStatus={isAdmin} />
                 </div>
               )}
               {rest.length > 0 && (
@@ -162,7 +172,7 @@ export default async function BlogPage({ searchParams }: PageProps) {
                   }}
                 >
                   {rest.map((p) => (
-                    <PostCard key={p.id} post={p} />
+                    <PostCard key={p.id} post={p} isAdmin={isAdmin} showStatus={isAdmin} />
                   ))}
                 </div>
               )}

@@ -2,8 +2,8 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { Btn } from "@/components/ui/Button";
-import { Icon } from "@/components/ui/Icon";
 
 interface AdminBlogToolbarProps {
   postId: string;
@@ -52,6 +52,15 @@ export function AdminBlogToolbar({ postId, isAdmin }: AdminBlogToolbarProps) {
         marginTop: 32,
       }}
     >
+      <Link href={`/blog/${postId}/edit`} style={{ textDecoration: "none" }}>
+        <Btn
+          variant="secondary"
+          size="sm"
+          icon="pencil"
+        >
+          Edit
+        </Btn>
+      </Link>
       <Btn
         variant="secondary"
         size="sm"

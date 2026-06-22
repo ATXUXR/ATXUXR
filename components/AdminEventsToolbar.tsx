@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { Btn } from "@/components/ui/Button";
 
 interface AdminEventsToolbarProps {
@@ -51,6 +52,24 @@ export function AdminEventsToolbar({ eventId, isAdmin }: AdminEventsToolbarProps
         marginTop: 32,
       }}
     >
+      <Link href={`/events/${eventId}/files`} style={{ textDecoration: "none" }}>
+        <Btn
+          variant="secondary"
+          size="sm"
+          icon="file-plus"
+        >
+          Files
+        </Btn>
+      </Link>
+      <Link href={`/events/${eventId}/edit`} style={{ textDecoration: "none" }}>
+        <Btn
+          variant="secondary"
+          size="sm"
+          icon="pencil"
+        >
+          Edit
+        </Btn>
+      </Link>
       <Btn
         variant="secondary"
         size="sm"

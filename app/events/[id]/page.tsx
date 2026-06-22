@@ -69,6 +69,14 @@ export default async function EventDetailPage({ params }: Props) {
     const { data: member } = await supabase.from("members").select("admin").eq("id", user.id).maybeSingle();
     isAdmin = Boolean(member?.admin);
   }
+
+  // Fetch event files
+  const { data: eventFiles } = await supabase
+    .from("event_files")
+    .select("id, file_name, file_size, file_type, file_url, created_at")
+    .eq("event_id", e.id)
+    .order("created_at", { ascending: false });
+
   const tone = KIND_TONE[e.kind];
   const open = e.status === "open";
   const cancelled = e.status === "cancelled";
@@ -309,6 +317,80 @@ export default async function EventDetailPage({ params }: Props) {
               <div style={{ marginTop: 28 }}>
                 <h3 style={{ fontSize: 20, margin: "0 0 12px" }}>Location</h3>
                 <MapEmbed address={e.address} />
+              </div>
+            )}
+
+            {eventFiles && eventFiles.length > 0 && (
+              <div style={{ marginTop: 28 }}>
+                <h3 style={{ fontSize: 20, margin: "0 0 16px" }}>Event files</h3>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))", gap: 12 }}>
+                  {eventFiles.map((file) => {
+                    const isImage = file.file_type.startsWith("image/");
+                    return (
+                      <a
+                        key={file.id}
+                        href={file.file_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        style={{
+                          display: "flex",
+                          flexDirection: "column",
+                          gap: 8,
+                          textDecoration: "none",
+                          color: "inherit",
+                        }}
+                      >
+                        {isImage ? (
+                          <div
+                            style={{
+                              width: "100%",
+                              aspectRatio: "1",
+                              borderRadius: "var(--radius-lg)",
+                              background: "var(--surface)",
+                              border: "1px solid var(--border)",
+                              backgroundImage: `url(${file.file_url})`,
+                              backgroundSize: "cover",
+                              backgroundPosition: "center",
+                            }}
+                          />
+                        ) : (
+                          <div
+                            style={{
+                              width: "100%",
+                              aspectRatio: "1",
+                              borderRadius: "var(--radius-lg)",
+                              background: "var(--surface)",
+                              border: "1px solid var(--border)",
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                              color: "var(--fg-muted)",
+                            }}
+                          >
+                            <Icon name="file" size={32} />
+                          </div>
+                        )}
+                        <div>
+                          <div
+                            style={{
+                              fontSize: 13.5,
+                              fontWeight: 500,
+                              color: "var(--primary)",
+                              overflow: "hidden",
+                              textOverflow: "ellipsis",
+                              whiteSpace: "nowrap",
+                            }}
+                          >
+                            {file.file_name}
+                          </div>
+                          <div style={{ fontSize: 12, color: "var(--fg-subtle)" }}>
+                            {(file.file_size / 1024).toFixed(0)} KB
+                          </div>
+                        </div>
+                      </a>
+                    );
+                  })}
+                </div>
               </div>
             )}
           </div>
