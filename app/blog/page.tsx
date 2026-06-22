@@ -4,7 +4,7 @@ import { Btn } from "@/components/ui/Button";
 import { Icon } from "@/components/ui/Icon";
 import { PostCard } from "@/components/PostCard";
 import { FeaturedPost } from "@/components/FeaturedPost";
-import { getAllPublishedTags, getPublishedPosts } from "@/lib/posts";
+import { getAllPublishedTags, getPublishedPosts, getAllPosts } from "@/lib/posts";
 import { createClient } from "@/lib/supabase/server";
 import { BlogToolbar } from "./BlogToolbar";
 
@@ -19,12 +19,7 @@ export default async function BlogPage({ searchParams }: PageProps) {
   const q = (sp.q ?? "").trim();
   const tag = (sp.tag ?? "").trim();
 
-  const [posts, tags] = await Promise.all([
-    getPublishedPosts({ q, tag }),
-    getAllPublishedTags(),
-  ]);
-
-  // Check signed-in state & admin status.
+  // Check signed-in state & admin status first.
   let signedIn = false;
   let isAdmin = false;
   if (
@@ -46,6 +41,12 @@ export default async function BlogPage({ searchParams }: PageProps) {
       isAdmin = Boolean(member?.admin);
     }
   }
+
+  // Fetch posts based on admin status, and tags
+  const [posts, tags] = await Promise.all([
+    isAdmin ? getAllPosts({ q, tag }) : getPublishedPosts({ q, tag }),
+    getAllPublishedTags(),
+  ]);
 
   const filtering = Boolean(q) || Boolean(tag);
   const featured = !filtering && posts[0];

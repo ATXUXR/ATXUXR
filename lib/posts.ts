@@ -63,6 +63,33 @@ export async function getPublishedPosts(opts: {
   return (data ?? []) as PostWithAuthor[];
 }
 
+export async function getAllPosts(opts: {
+  tag?: string;
+  q?: string;
+} = {}): Promise<PostWithAuthor[]> {
+  if (emptyClient()) return [];
+  const supabase = await createClient();
+  let query = supabase
+    .from("posts")
+    .select(`*, author:members!posts_author_id_fkey(${AUTHOR_FIELDS})`)
+    .order("created_at", { ascending: false });
+
+  if (opts.tag) query = query.contains("tags", [opts.tag]);
+  if (opts.q && opts.q.trim()) {
+    const term = opts.q.trim().replace(/[%_]/g, "");
+    query = query.or(
+      `title.ilike.%${term}%,excerpt.ilike.%${term}%`,
+    );
+  }
+
+  const { data, error } = await query;
+  if (error) {
+    console.error("getAllPosts", error);
+    return [];
+  }
+  return (data ?? []) as PostWithAuthor[];
+}
+
 export async function getPostById(id: string): Promise<PostWithAuthor | null> {
   if (emptyClient()) return null;
   const supabase = await createClient();
