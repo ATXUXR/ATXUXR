@@ -232,7 +232,10 @@ export default async function ArticlePage({ params }: PageProps) {
                 </div>
               </div>
             </Link>
-            <ShareBar title={post.title} url={articleUrl} />
+            <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
+              <ShareBar title={post.title} url={articleUrl} />
+              <AdminBlogToolbar postId={post.id} isAdmin={Boolean(currentMember?.admin)} position="top" />
+            </div>
           </div>
         </div>
 
@@ -382,8 +385,6 @@ export default async function ArticlePage({ params }: PageProps) {
             </div>
           </div>
         )}
-
-        <AdminBlogToolbar postId={post.id} isAdmin={Boolean(currentMember?.admin)} />
 
         {/* COMMENTS */}
         <Comments

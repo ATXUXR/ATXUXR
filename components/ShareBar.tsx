@@ -9,20 +9,6 @@ interface ShareBarProps {
   label?: boolean;
 }
 
-function XLogo({ size = 17 }: { size?: number }) {
-  return (
-    <svg
-      width={size}
-      height={size}
-      viewBox="0 0 24 24"
-      fill="currentColor"
-      aria-hidden="true"
-      style={{ display: "block" }}
-    >
-      <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
-    </svg>
-  );
-}
 
 function MediumLogo({ size = 17 }: { size?: number }) {
   return (
@@ -60,14 +46,6 @@ export function ShareBar({ title, url, label = true }: ShareBarProps) {
   const open = (href: string) => window.open(href, "_blank", "noopener");
 
   const targets = [
-    {
-      key: "x",
-      Logo: XLogo,
-      title: "Share on X",
-      href: `https://twitter.com/intent/tweet?text=${encodeURIComponent(
-        text,
-      )}&url=${encodeURIComponent(url)}`,
-    },
     {
       key: "li",
       Logo: LinkedInLogo,
@@ -159,23 +137,14 @@ export function ShareBar({ title, url, label = true }: ShareBarProps) {
       ))}
       <button
         type="button"
-        title="Copy link"
+        title={copied ? "Copied!" : "Copy link"}
         aria-label="Copy link"
         onClick={copy}
-        style={{
-          ...btnBase,
-          width: "auto",
-          padding: "0 14px",
-          gap: 7,
-          borderRadius: "var(--radius-pill)",
-        }}
+        style={btnBase}
         onMouseEnter={(e) => onHover(e, true)}
         onMouseLeave={(e) => onHover(e, false)}
       >
         <Icon name={copied ? "check" : "link"} size={16} />
-        <span style={{ fontSize: 13, fontWeight: 600 }}>
-          {copied ? "Copied!" : "Copy link"}
-        </span>
       </button>
     </div>
   );

@@ -88,10 +88,9 @@ export interface Social {
   href: string;
 }
 
-// Per the spec: NO Meetup. LinkedIn, X, Instagram only.
+// Per the spec: NO Meetup, X, or Twitter. LinkedIn, Instagram only.
 export const SOCIALS: Social[] = [
   { label: "LinkedIn", icon: "linkedin", href: "https://www.linkedin.com/groups/14475239/" },
-  { label: "X", icon: "twitter", href: "https://x.com/atxuxr" },
   { label: "Instagram", icon: "instagram", href: "https://www.instagram.com/atxuxr/" },
 ];
 

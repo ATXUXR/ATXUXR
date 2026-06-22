@@ -8,9 +8,10 @@ import { Btn } from "@/components/ui/Button";
 interface AdminBlogToolbarProps {
   postId: string;
   isAdmin: boolean;
+  position?: "top" | "bottom";
 }
 
-export function AdminBlogToolbar({ postId, isAdmin }: AdminBlogToolbarProps) {
+export function AdminBlogToolbar({ postId, isAdmin, position = "bottom" }: AdminBlogToolbarProps) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
 
@@ -41,21 +42,21 @@ export function AdminBlogToolbar({ postId, isAdmin }: AdminBlogToolbarProps) {
     }
   };
 
+  const isTop = position === "top";
+
   return (
     <div
       style={{
         display: "flex",
         gap: 8,
         justifyContent: "flex-end",
-        padding: "16px 0",
-        borderTop: "1px solid var(--border)",
-        marginTop: 32,
+        ...(isTop ? {} : { padding: "16px 0", borderTop: "1px solid var(--border)", marginTop: 32 }),
       }}
     >
       <Link href={`/blog/${postId}/edit`} style={{ textDecoration: "none" }}>
         <Btn
           variant="secondary"
-          size="sm"
+          size={isTop ? "sm" : "sm"}
           icon="pencil"
         >
           Edit
@@ -63,7 +64,7 @@ export function AdminBlogToolbar({ postId, isAdmin }: AdminBlogToolbarProps) {
       </Link>
       <Btn
         variant="secondary"
-        size="sm"
+        size={isTop ? "sm" : "sm"}
         icon="trash-2"
         onClick={handleDelete}
         disabled={loading}
