@@ -17,6 +17,9 @@ interface PostCardProps {
 
 export function PostCard({ post, isAdmin = false, showStatus = false }: PostCardProps) {
   const [h, setH] = useState(false);
+  const isHidden = post.status !== "published";
+  const isHiddenByAdmin = isHidden && isAdmin;
+
   return (
     <div style={{ position: "relative" }}>
       <Link
@@ -29,12 +32,13 @@ export function PostCard({ post, isAdmin = false, showStatus = false }: PostCard
           display: "flex",
           flexDirection: "column",
           background: "var(--surface)",
-          border: "1px solid var(--border)",
+          border: isHiddenByAdmin ? "2px dotted var(--fg-muted)" : "1px solid var(--border)",
           borderRadius: "var(--radius-lg)",
           overflow: "hidden",
           boxShadow: h ? "var(--shadow-md)" : "var(--shadow-sm)",
           transform: h ? "translateY(-3px)" : "none",
           transition: "var(--transition)",
+          opacity: isHiddenByAdmin ? 0.55 : 1,
         }}
       >
       <PostCover post={post} height={172} />

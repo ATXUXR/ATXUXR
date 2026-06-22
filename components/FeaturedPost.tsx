@@ -18,6 +18,9 @@ interface Props {
 
 export function FeaturedPost({ post, isAdmin = false, showStatus = false }: Props) {
   const [h, setH] = useState(false);
+  const isHidden = post.status !== "published";
+  const isHiddenByAdmin = isHidden && isAdmin;
+
   return (
     <div style={{ position: "relative" }}>
     <Link
@@ -31,11 +34,12 @@ export function FeaturedPost({ post, isAdmin = false, showStatus = false }: Prop
         textDecoration: "none",
         color: "inherit",
         background: "var(--surface)",
-        border: "1px solid var(--border)",
+        border: isHiddenByAdmin ? "2px dotted var(--fg-muted)" : "1px solid var(--border)",
         borderRadius: "var(--radius-xl)",
         overflow: "hidden",
         boxShadow: h ? "var(--shadow-lg)" : "var(--shadow-md)",
         transition: "var(--transition)",
+        opacity: isHiddenByAdmin ? 0.55 : 1,
       }}
     >
       <PostCover post={post} height={340} radius="0" />
