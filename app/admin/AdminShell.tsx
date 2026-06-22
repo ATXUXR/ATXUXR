@@ -55,10 +55,10 @@ export function AdminShell({ bundle, tab, meId, days, calendar, drafts, formSubm
         formSubmissions.length +
         blogSubmissions.filter((s) => s.status === "pending").length,
     },
+    { key: "drafts", label: "Content Drafts", count: drafts.filter((d) => d.status === "draft").length },
     { key: "events", label: "Events", count: bundle.eventsFull.length },
-    { key: "calendar", label: "Calendar", count: calendar.length },
-    { key: "schedule", label: "6M Schedule" },
-    { key: "drafts", label: "Drafts", count: drafts.filter((d) => d.status === "draft").length },
+    { key: "calendar", label: "Content Schedule", count: calendar.length },
+    { key: "schedule", label: "Calendar" },
     { key: "share", label: "Announcements" },
     { key: "members", label: "Members", count: bundle.members.length },
     { key: "signups", label: "Sign-ups", count: bundle.signups.length },
