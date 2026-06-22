@@ -418,7 +418,7 @@ function SubmissionDrawer({
         onClick={(e) => e.stopPropagation()}
       >
         <div style={{ marginBottom: 24 }}>
-          <h2 style={{ margin: "0 0 12px" }}>{submission.title}</h2>
+          <h2 style={{ margin: "0 0 12px", fontSize: 18, fontWeight: 600 }}>{submission.title}</h2>
           <div
             style={{
               display: "flex",
@@ -486,7 +486,7 @@ function SubmissionDrawer({
                 disabled={actionLoading === open.id}
               >
                 <Icon name="check" size={14} style={{ marginRight: 4 }} />
-                Approve
+                Approve for Review
               </Btn>
               {isBlog && (
                 <Btn
