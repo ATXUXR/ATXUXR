@@ -44,6 +44,12 @@ export function DraftChannelCard({
   const enabled = version?.enabled ?? false;
   const generatedFromMain = version?.generated_from_main ?? false;
 
+  // Sync content and notes when version changes
+  useEffect(() => {
+    setContent(version?.content || "");
+    setNotes(version?.notes || "");
+  }, [version?.id, version?.content, version?.notes]);
+
   // Auto-save on content change
   useEffect(() => {
     if (!enabled || (!content && !notes)) return;
