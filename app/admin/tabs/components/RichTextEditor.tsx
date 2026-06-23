@@ -14,6 +14,7 @@ interface RichTextEditorProps {
   value: string;
   onChange: (value: string) => void;
   placeholder?: string;
+  minHeight?: number;
 }
 
 const TEXT_COLORS = [
@@ -30,6 +31,7 @@ export function RichTextEditor({
   value,
   onChange,
   placeholder = "Write your content...",
+  minHeight = 500,
 }: RichTextEditorProps) {
   const imageInputRef = useRef<HTMLInputElement>(null);
   const videoInputRef = useRef<HTMLInputElement>(null);
@@ -509,7 +511,7 @@ export function RichTextEditor({
       </div>
 
       {/* Editor */}
-      <div style={{ minHeight: 500, background: "var(--bg)" }}>
+      <div style={{ minHeight, background: "var(--bg)" }}>
         <EditorContent
           editor={editor}
           style={{

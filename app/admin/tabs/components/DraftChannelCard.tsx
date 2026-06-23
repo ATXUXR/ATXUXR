@@ -8,7 +8,7 @@ import type {
   CalendarDraftVersion,
 } from "@/lib/content-calendar";
 import { CHANNEL_LABELS } from "@/lib/content-calendar";
-import { RichTextEditor } from "./RichTextEditor";
+import { EnhancedRichTextEditor } from "./EnhancedRichTextEditor";
 
 interface DraftChannelCardProps {
   version: CalendarDraftVersion | null;
@@ -215,9 +215,9 @@ export function DraftChannelCard({
                 letterSpacing: "0.5px",
               }}
             >
-              Content
+              Content (Rich Text)
             </label>
-            <RichTextEditor
+            <EnhancedRichTextEditor
               value={content}
               onChange={setContent}
               placeholder={`Write or paste content for ${CHANNEL_LABELS[channel]}...`}
