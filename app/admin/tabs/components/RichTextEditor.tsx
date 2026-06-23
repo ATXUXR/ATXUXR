@@ -8,7 +8,7 @@ import Color from "@tiptap/extension-color";
 import Image from "@tiptap/extension-image";
 import { Btn } from "@/components/ui/Button";
 import { Icon } from "@/components/ui/Icon";
-import { useRef, useState } from "react";
+import { useRef, useState, useEffect } from "react";
 
 interface RichTextEditorProps {
   value: string;
@@ -69,6 +69,13 @@ export function RichTextEditor({
       onChange(editor.getHTML());
     },
   });
+
+  // Sync editor content when value prop changes
+  useEffect(() => {
+    if (editor && value && editor.getHTML() !== value) {
+      editor.commands.setContent(value);
+    }
+  }, [value, editor]);
 
   if (!editor) return null;
 
