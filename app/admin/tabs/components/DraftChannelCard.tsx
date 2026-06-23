@@ -72,11 +72,17 @@ export function DraftChannelCard({
     };
   }, [content, notes, enabled, onUpdateContent]);
 
-  const handleInsertFromMain = () => {
-    if (mainContent) {
-      setContent(mainContent);
-      setError(null);
-    }
+  const handleInsertFromMain = async () => {
+    if (!mainContent) return;
+
+    setContent(mainContent);
+    setError(null);
+
+    // Trigger auto-save immediately after setting content
+    setTimeout(() => {
+      if (!draftId) return;
+      onUpdateContent(mainContent, notes);
+    }, 100);
   };
 
   const handleTextSelection = () => {
@@ -89,9 +95,25 @@ export function DraftChannelCard({
       setError("Please save the draft first before generating content");
       return;
     }
+
     try {
       setError(null);
-      await onGenerateContent();
+      const response = await fetch(
+        `/api/admin/calendar/draft/${draftId}/generate`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ channel }),
+        }
+      );
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || `Generation failed: ${response.statusText}`);
+      }
+
+      const updated = await response.json();
+      await onUpdateContent(updated.content || content, updated.notes || notes);
     } catch (err) {
       const errorMsg = err instanceof Error ? err.message : "Failed to generate content";
       setError(errorMsg);
@@ -108,6 +130,8 @@ export function DraftChannelCard({
     setIsGeneratingImage(true);
     setError(null);
     try {
+      console.log("Starting image generation for channel:", channel);
+
       const response = await fetch(`/api/admin/calendar/draft/${draftId}/image`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -118,16 +142,24 @@ export function DraftChannelCard({
         }),
       });
 
+      console.log("Image generation response status:", response.status);
+
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || "Failed to generate image");
+        const errorData = await response.json().catch(() => ({}));
+        const errorMsg = errorData.error || errorData.message || `HTTP ${response.status}`;
+        throw new Error(`Image generation failed: ${errorMsg}`);
       }
 
-      const { imageUrl } = await response.json();
+      const data = await response.json();
+      console.log("Image generation response:", data);
+
+      const imageUrl = data.imageUrl || data.url;
       if (imageUrl) {
         // Update the version with the image URL
         await onUpdateContent(content, notes);
         onImageGenerated?.(imageUrl);
+      } else {
+        throw new Error("No image URL in response");
       }
     } catch (err) {
       const errorMsg = err instanceof Error ? err.message : "Image generation failed";

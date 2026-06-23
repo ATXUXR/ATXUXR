@@ -511,7 +511,12 @@ export function RichTextEditor({
       </div>
 
       {/* Editor */}
-      <div style={{ minHeight, background: "var(--bg)" }}>
+      <div
+        style={{
+          minHeight,
+          background: "var(--bg)",
+        }}
+      >
         <EditorContent
           editor={editor}
           style={{
@@ -521,8 +526,19 @@ export function RichTextEditor({
             lineHeight: 1.8,
             color: "white",
             outline: "none",
+            backgroundColor: "var(--bg)",
           }}
         />
+        <style>{`
+          .ProseMirror {
+            color: white !important;
+            background: var(--bg) !important;
+            min-height: ${minHeight}px;
+          }
+          .ProseMirror p {
+            color: white !important;
+          }
+        `}</style>
       </div>
     </div>
   );
