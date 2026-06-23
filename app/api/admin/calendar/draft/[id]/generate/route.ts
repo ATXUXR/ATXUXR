@@ -129,6 +129,9 @@ export async function POST(
     // Convert HTML content to plain text for Claude
     const plainTextContent = htmlToPlainText(draft.main_content);
 
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 120000); // 120 second timeout
+
     const response = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
       headers: {
@@ -136,6 +139,7 @@ export async function POST(
         "x-api-key": apiKey,
         "anthropic-version": "2023-06-01",
       },
+      signal: controller.signal,
       body: JSON.stringify({
         model: "claude-opus-4-6",
         max_tokens: 2000,
@@ -156,6 +160,8 @@ Please generate the adapted content. Return ONLY the adapted content without any
         ],
       }),
     });
+
+    clearTimeout(timeoutId);
 
     if (!response.ok) {
       const error = await response.json();
