@@ -18,7 +18,7 @@ export async function GET() {
         EVENTS.map((e) => ({
           id: e.id,
           title: e.title,
-          starts_at: new Date(e.year, 0, 1).toISOString(), // Approximate
+          starts_at: new Date(parseInt(e.year), 0, 1).toISOString(), // Approximate
           kind: e.kind,
         }))
       );
@@ -28,7 +28,7 @@ export async function GET() {
     const legacyEvents = EVENTS.map((e) => ({
       id: e.id,
       title: e.title,
-      starts_at: new Date(e.year, 0, 1).toISOString(), // Approximate
+      starts_at: new Date(parseInt(e.year), 0, 1).toISOString(), // Approximate
       kind: e.kind,
     }));
 
