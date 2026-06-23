@@ -278,36 +278,61 @@ export function DraftChannelCard({
               <div
                 style={{
                   marginTop: 8,
-                  padding: 12,
+                  padding: 14,
                   borderRadius: "var(--radius-md)",
-                  background: "var(--blue-50)",
-                  border: "2px solid var(--blue-300)",
-                  color: "var(--blue-800)",
+                  background: "linear-gradient(135deg, var(--blue-50) 0%, var(--blue-100) 100%)",
+                  border: "2px solid var(--blue-400)",
+                  color: "var(--blue-900)",
                   fontSize: 13,
-                  lineHeight: 1.5,
+                  lineHeight: 1.6,
                   display: "flex",
                   alignItems: "center",
-                  gap: 10,
+                  gap: 12,
                   fontWeight: 500,
+                  animation: "pulse-border 1.5s ease-in-out infinite",
                 }}
               >
                 <span
                   style={{
-                    display: "inline-block",
-                    width: 16,
-                    height: 16,
-                    border: "3px solid var(--blue-200)",
-                    borderTop: "3px solid var(--blue-600)",
-                    borderRadius: "50%",
-                    animation: "spin 0.6s linear infinite",
+                    display: "inline-flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    width: 24,
+                    height: 24,
+                    minWidth: 24,
                   }}
-                />
-                <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-                  <span style={{ fontWeight: 600 }}>
+                >
+                  <span
+                    style={{
+                      position: "absolute",
+                      width: 24,
+                      height: 24,
+                      border: "3px solid transparent",
+                      borderTopColor: "var(--primary)",
+                      borderRightColor: "var(--primary)",
+                      borderRadius: "50%",
+                      animation: "spin-fast 0.8s linear infinite",
+                    }}
+                  />
+                  <span
+                    style={{
+                      position: "absolute",
+                      width: 16,
+                      height: 16,
+                      border: "2px solid transparent",
+                      borderBottomColor: "var(--blue-300)",
+                      borderLeftColor: "var(--blue-300)",
+                      borderRadius: "50%",
+                      animation: "spin-slow 1.2s linear infinite reverse",
+                    }}
+                  />
+                </span>
+                <div style={{ display: "flex", flexDirection: "column", gap: 3, marginLeft: 4 }}>
+                  <span style={{ fontWeight: 700, fontSize: 14 }}>
                     {isGeneratingImage ? "✨ Generating image..." : "⚡ Generating content..."}
                   </span>
-                  <span style={{ fontSize: 11, opacity: 0.8 }}>
-                    {isGeneratingImage ? "Creating visual for " + channel : "Adapting for " + channel}
+                  <span style={{ fontSize: 11, opacity: 0.75 }}>
+                    {isGeneratingImage ? "Creating visual for " + channel : "Adapting for " + channel} • Please wait
                   </span>
                 </div>
               </div>
@@ -332,8 +357,17 @@ export function DraftChannelCard({
             )}
 
             <style>{`
-              @keyframes spin {
+              @keyframes spin-fast {
+                from { transform: rotate(0deg); }
                 to { transform: rotate(360deg); }
+              }
+              @keyframes spin-slow {
+                from { transform: rotate(0deg); }
+                to { transform: rotate(360deg); }
+              }
+              @keyframes pulse-border {
+                0%, 100% { box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.3); }
+                50% { box-shadow: 0 0 0 6px rgba(59, 130, 246, 0); }
               }
             `}</style>
 

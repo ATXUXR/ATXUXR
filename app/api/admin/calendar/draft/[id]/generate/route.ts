@@ -155,15 +155,27 @@ ${plainTextContent}
 
 ${draft.notes ? `Additional context: ${draft.notes}` : ""}
 
-IMPORTANT: Format the adapted content properly:
-- Use blank lines between paragraphs
-- Use headers (with # ## ###) to organize sections
-- Keep sentences concise and scannable
-- Add line breaks for readability and visual separation
-- Do NOT return as one continuous block of text
-- Maintain proper spacing throughout
+CRITICAL FORMATTING REQUIREMENTS - MUST DO ALL:
+1. Separate every thought/paragraph with TWO blank lines (press enter twice)
+2. Use headers: Start sections with ## Section Title
+3. Keep paragraphs SHORT - max 3 sentences per paragraph
+4. Add bullet points or numbered lists where appropriate
+5. End result should look visually organized with lots of white space
+6. NO long continuous blocks of text - break it up aggressively
+7. Use line breaks between every distinct idea
 
-Return ONLY the formatted adapted content without any preamble or explanation.`,
+Example structure:
+## First Section
+
+Opening paragraph here. Keep it short.
+
+## Second Section
+
+Next idea goes here.
+
+---
+
+Return ONLY the formatted adapted content. No preamble. Focus on readability above all else.`,
           },
         ],
       }),
