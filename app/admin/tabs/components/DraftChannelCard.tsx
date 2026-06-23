@@ -255,6 +255,38 @@ export function DraftChannelCard({
               placeholder={`Write or paste content for ${CHANNEL_LABELS[channel]}...`}
             />
 
+            {/* Loading message */}
+            {(isGeneratingImage || isGenerating === true) && (
+              <div
+                style={{
+                  marginTop: 8,
+                  padding: 10,
+                  borderRadius: "var(--radius-md)",
+                  background: "var(--blue-50)",
+                  border: "1px solid var(--blue-200)",
+                  color: "var(--blue-700)",
+                  fontSize: 12,
+                  lineHeight: 1.4,
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 8,
+                }}
+              >
+                <span
+                  style={{
+                    display: "inline-block",
+                    width: 14,
+                    height: 14,
+                    border: "2px solid var(--blue-200)",
+                    borderTop: "2px solid var(--blue-700)",
+                    borderRadius: "50%",
+                    animation: "spin 0.8s linear infinite",
+                  }}
+                />
+                <span>{isGeneratingImage ? "Generating image..." : "Generating content..."}</span>
+              </div>
+            )}
+
             {/* Error message */}
             {error && (
               <div
@@ -272,6 +304,12 @@ export function DraftChannelCard({
                 <strong>Generation failed:</strong> {error}
               </div>
             )}
+
+            <style>{`
+              @keyframes spin {
+                to { transform: rotate(360deg); }
+              }
+            `}</style>
 
             {/* Content toolbar */}
             <div

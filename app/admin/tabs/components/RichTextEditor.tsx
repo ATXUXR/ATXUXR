@@ -36,6 +36,15 @@ export function RichTextEditor({
   const imageInputRef = useRef<HTMLInputElement>(null);
   const videoInputRef = useRef<HTMLInputElement>(null);
   const [colorDropdown, setColorDropdown] = useState(false);
+  const [fontSizeDropdown, setFontSizeDropdown] = useState(false);
+
+  const FONT_SIZES = [
+    { label: "Small", value: "12px" },
+    { label: "Normal", value: "14px" },
+    { label: "Large", value: "16px" },
+    { label: "Extra Large", value: "18px" },
+    { label: "Heading", value: "24px" },
+  ];
 
   const editor = useEditor({
     extensions: [
@@ -261,6 +270,75 @@ export function RichTextEditor({
                   }}
                 >
                   {color.name}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div style={{ width: 1, background: "var(--border)", margin: "0 4px" }} />
+
+        {/* Font size */}
+        <div style={{ position: "relative" }}>
+          <button
+            onClick={() => setFontSizeDropdown(!fontSizeDropdown)}
+            style={{
+              padding: "6px 10px",
+              fontSize: 12,
+              fontWeight: 600,
+              border: "1px solid var(--border)",
+              borderRadius: "var(--radius-sm)",
+              cursor: "pointer",
+              color: "var(--fg)",
+              background: "transparent",
+            }}
+            title="Font size"
+          >
+            <Icon name="type" size={14} />
+          </button>
+          {fontSizeDropdown && (
+            <div
+              style={{
+                position: "absolute",
+                top: "100%",
+                left: 0,
+                zIndex: 10,
+                background: "var(--surface)",
+                border: "1px solid var(--border)",
+                borderRadius: "var(--radius-md)",
+                padding: 8,
+                marginTop: 4,
+                display: "flex",
+                flexDirection: "column",
+                gap: 4,
+                minWidth: 120,
+              }}
+            >
+              {FONT_SIZES.map((size) => (
+                <button
+                  key={size.value}
+                  onClick={() => {
+                    editor.chain().focus().setFontFamily("inherit").run();
+                    // Use inline styles for font size
+                    editor
+                      .chain()
+                      .focus()
+                      .setMark("textStyle", { fontSize: size.value })
+                      .run();
+                    setFontSizeDropdown(false);
+                  }}
+                  style={{
+                    padding: "6px 10px",
+                    fontSize: 12,
+                    border: "1px solid var(--border)",
+                    borderRadius: "var(--radius-sm)",
+                    cursor: "pointer",
+                    background: "var(--bg)",
+                    color: "var(--fg)",
+                    textAlign: "left",
+                  }}
+                >
+                  {size.label}
                 </button>
               ))}
             </div>
@@ -521,7 +599,7 @@ export function RichTextEditor({
       <div
         style={{
           minHeight,
-          background: "var(--bg)",
+          background: "white",
         }}
       >
         <EditorContent
@@ -531,19 +609,19 @@ export function RichTextEditor({
             minHeight: "100%",
             fontSize: 14,
             lineHeight: 1.8,
-            color: "white",
+            color: "black",
             outline: "none",
-            backgroundColor: "var(--bg)",
+            backgroundColor: "white",
           }}
         />
         <style>{`
           .ProseMirror {
-            color: white !important;
-            background: var(--bg) !important;
+            color: black !important;
+            background: white !important;
             min-height: ${minHeight}px;
           }
           .ProseMirror p {
-            color: white !important;
+            color: black !important;
           }
         `}</style>
       </div>
