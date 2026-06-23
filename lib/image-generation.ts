@@ -1,46 +1,49 @@
-// Image generation via Replicate (FLUX model for fast, high-quality images)
+// Image generation via Google Gemini (included with your Google account)
 
 export interface GeneratedImage {
   url: string;
-  source: "replicate";
+  source: "google";
 }
 
 /**
- * Generate an image from a prompt using Replicate FLUX.
+ * Generate an image from a prompt using Google Gemini.
  */
 export async function generateImage(prompt: string): Promise<GeneratedImage> {
-  if (!process.env.REPLICATE_API_KEY) {
-    throw new Error("REPLICATE_API_KEY not configured");
+  if (!process.env.GOOGLE_GENERATIVE_AI_API_KEY) {
+    throw new Error("GOOGLE_GENERATIVE_AI_API_KEY not configured");
   }
 
-  const url = await generateViaReplicate(prompt);
-  return { url, source: "replicate" };
+  const url = await generateViaGoogle(prompt);
+  return { url, source: "google" };
 }
 
 /**
- * Generate image via Replicate using FLUX (fast, high quality)
+ * Generate image via Google Gemini API
  */
-async function generateViaReplicate(prompt: string): Promise<string> {
-  if (!process.env.REPLICATE_API_KEY) {
-    throw new Error("REPLICATE_API_KEY not set");
+async function generateViaGoogle(prompt: string): Promise<string> {
+  if (!process.env.GOOGLE_GENERATIVE_AI_API_KEY) {
+    throw new Error("GOOGLE_GENERATIVE_AI_API_KEY not set");
   }
 
-  // Use model endpoint format: POST to model-specific prediction endpoint
+  // Use Google's image generation API
   const response = await fetch(
-    "https://api.replicate.com/v1/models/black-forest-labs/flux-pro/predictions",
+    "https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-001:generateContent",
     {
       method: "POST",
       headers: {
-        Authorization: `Token ${process.env.REPLICATE_API_KEY}`,
         "Content-Type": "application/json",
+        "x-goog-api-key": process.env.GOOGLE_GENERATIVE_AI_API_KEY,
       },
       body: JSON.stringify({
-        input: {
-          prompt,
-          aspect_ratio: "16:9",
-          output_format: "jpg",
-          num_outputs: 1,
-        },
+        contents: [
+          {
+            parts: [
+              {
+                text: prompt,
+              },
+            ],
+          },
+        ],
       }),
     }
   );
@@ -48,47 +51,31 @@ async function generateViaReplicate(prompt: string): Promise<string> {
   if (!response.ok) {
     const err = await response.json().catch(() => ({}));
     throw new Error(
-      `Replicate API error: ${err.detail || err.error || response.statusText}`
+      `Google Gemini API error: ${err.error?.message || err.error || response.statusText}`
     );
   }
 
-  const prediction = await response.json();
-  const predictionId = prediction.id;
+  const data = await response.json();
 
-  // Poll for completion (timeout after 3 minutes)
-  const startTime = Date.now();
-  const timeout = 3 * 60 * 1000;
+  // Extract image URL from response
+  if (
+    data.candidates &&
+    data.candidates[0] &&
+    data.candidates[0].content &&
+    data.candidates[0].content.parts &&
+    data.candidates[0].content.parts[0]
+  ) {
+    const imageData = data.candidates[0].content.parts[0];
 
-  while (Date.now() - startTime < timeout) {
-    const statusResponse = await fetch(
-      `https://api.replicate.com/v1/predictions/${predictionId}`,
-      {
-        headers: {
-          Authorization: `Token ${process.env.REPLICATE_API_KEY}`,
-        },
-      }
-    );
-
-    const status = await statusResponse.json();
-
-    if (status.status === "succeeded") {
-      const imageUrl = Array.isArray(status.output)
-        ? status.output[0]
-        : status.output;
-      if (!imageUrl) {
-        throw new Error("Replicate returned no image URL");
-      }
-      return imageUrl;
+    // If it's an inline_data object, we need to handle the base64
+    if (imageData.inline_data && imageData.inline_data.data) {
+      // For now, return the base64 as a data URL
+      const base64 = imageData.inline_data.data;
+      const mimeType = imageData.inline_data.mime_type || "image/jpeg";
+      return `data:${mimeType};base64,${base64}`;
     }
-
-    if (status.status === "failed") {
-      throw new Error(`Replicate generation failed: ${status.error}`);
-    }
-
-    // Wait 1 second before polling again
-    await new Promise((resolve) => setTimeout(resolve, 1000));
   }
 
-  throw new Error("Replicate generation timed out (exceeded 3 minutes)");
+  throw new Error("No image data in Google Gemini response");
 }
 
