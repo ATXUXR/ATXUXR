@@ -155,7 +155,15 @@ ${plainTextContent}
 
 ${draft.notes ? `Additional context: ${draft.notes}` : ""}
 
-Please generate the adapted content. Return ONLY the adapted content without any preamble or explanation.`,
+IMPORTANT: Format the adapted content properly:
+- Use blank lines between paragraphs
+- Use headers (with # ## ###) to organize sections
+- Keep sentences concise and scannable
+- Add line breaks for readability and visual separation
+- Do NOT return as one continuous block of text
+- Maintain proper spacing throughout
+
+Return ONLY the formatted adapted content without any preamble or explanation.`,
           },
         ],
       }),

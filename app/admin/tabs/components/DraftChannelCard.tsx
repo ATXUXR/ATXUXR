@@ -160,8 +160,21 @@ export function DraftChannelCard({
 
       const imageUrl = data.imageUrl || data.url;
       if (imageUrl) {
-        // Update the version with the image URL
-        await onUpdateContent(content, notes);
+        // Insert image into editor content if not already there
+        // Create HTML for the image with proper styling
+        const imageHtml = `<p><img src="${imageUrl}" alt="Generated image for ${channel}" style="max-width: 100%; height: auto; border-radius: 8px; margin: 16px 0;" /></p>`;
+
+        // Add image to content if it's not already there
+        if (!content.includes(imageUrl)) {
+          const updatedContent = content + imageHtml;
+          setContent(updatedContent);
+          // Save the updated content with image
+          await onUpdateContent(updatedContent, notes);
+        } else {
+          // Image already in content, just update
+          await onUpdateContent(content, notes);
+        }
+
         onImageGenerated?.(imageUrl);
       } else {
         throw new Error("No image URL in response");
@@ -265,30 +278,38 @@ export function DraftChannelCard({
               <div
                 style={{
                   marginTop: 8,
-                  padding: 10,
+                  padding: 12,
                   borderRadius: "var(--radius-md)",
                   background: "var(--blue-50)",
-                  border: "1px solid var(--blue-200)",
-                  color: "var(--blue-700)",
-                  fontSize: 12,
-                  lineHeight: 1.4,
+                  border: "2px solid var(--blue-300)",
+                  color: "var(--blue-800)",
+                  fontSize: 13,
+                  lineHeight: 1.5,
                   display: "flex",
                   alignItems: "center",
-                  gap: 8,
+                  gap: 10,
+                  fontWeight: 500,
                 }}
               >
                 <span
                   style={{
                     display: "inline-block",
-                    width: 14,
-                    height: 14,
-                    border: "2px solid var(--blue-200)",
-                    borderTop: "2px solid var(--blue-700)",
+                    width: 16,
+                    height: 16,
+                    border: "3px solid var(--blue-200)",
+                    borderTop: "3px solid var(--blue-600)",
                     borderRadius: "50%",
-                    animation: "spin 0.8s linear infinite",
+                    animation: "spin 0.6s linear infinite",
                   }}
                 />
-                <span>{isGeneratingImage ? "Generating image..." : "Generating content..."}</span>
+                <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                  <span style={{ fontWeight: 600 }}>
+                    {isGeneratingImage ? "✨ Generating image..." : "⚡ Generating content..."}
+                  </span>
+                  <span style={{ fontSize: 11, opacity: 0.8 }}>
+                    {isGeneratingImage ? "Creating visual for " + channel : "Adapting for " + channel}
+                  </span>
+                </div>
               </div>
             )}
 

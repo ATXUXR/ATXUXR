@@ -17,15 +17,15 @@ function htmlToPlainText(html: string): string {
 
 const CHANNEL_IMAGE_PROMPTS: Record<string, string> = {
   atxuxr:
-    "Professional, minimalist, research-focused illustration with modern design. Clean typography and muted colors.",
+    "Academic research visualization with professional minimalist aesthetic. Show research methodology, data visualization, or insights in progress. Use muted earth tones (grays, blues, greens), clean typography, and scientific illustrations. Style: modern academic paper cover.",
   linkedin:
-    "Professional, corporate-style image. Modern, clean aesthetic suitable for business professionals.",
+    "Corporate professional image optimized for LinkedIn. Show workplace collaboration, leadership, strategy, or business insights. Use professional color palette (blues, whites, modern accents), modern design, confident composition. Style: professional headshot or business meeting aesthetic.",
   medium:
-    "Engaging, narrative-driven illustration. Warm colors, storytelling focused, accessible design.",
+    "Medium article feature image with warm, engaging storytelling aesthetic. Show narrative progression, human elements, or thoughtful reflection. Use warm color palette (oranges, warm blues, earth tones), illustrated style, narrative composition. Style: illustrated feature for thought leadership.",
   slack:
-    "Friendly, approachable illustration. Casual but professional. Suitable for team communication.",
+    "Casual team communication image that's friendly but professional. Show collaboration, discussion, or learning moments. Use friendly but not childish colors (approachable palette), approachable illustrations, conversational feel. Style: friendly team chat cover.",
   instagram:
-    "Visually striking, vibrant image. High contrast, shareable aesthetic. Engaging and inspiring.",
+    "Eye-catching Instagram visual designed for high engagement and shareability. Use bold, vibrant colors with high contrast, modern abstract or illustrated elements, striking composition. Style: Instagram post/story with trending aesthetic, visually compelling and memorable.",
 };
 
 export async function POST(
@@ -68,13 +68,30 @@ export async function POST(
     const plainContent = htmlToPlainText(content);
     const plainPrompt = prompt ? htmlToPlainText(prompt) : "";
 
+    // Extract key themes from content for better visual representation
+    const contentPreview = plainContent.substring(0, 300);
+    const hasKeywords = (keywords: string[]) =>
+      keywords.some(kw => contentPreview.toLowerCase().includes(kw.toLowerCase()));
+
+    let themeHints = "";
+    if (hasKeywords(["research", "study", "data", "analysis"])) {
+      themeHints = "Focus on data visualization, research methodology, or analytical insights. ";
+    } else if (hasKeywords(["team", "collaborate", "together", "meeting"])) {
+      themeHints = "Focus on collaboration, teamwork, and human connection. ";
+    } else if (hasKeywords(["learn", "growth", "develop", "improve"])) {
+      themeHints = "Focus on learning, progress, and personal/professional growth. ";
+    } else if (hasKeywords(["innovation", "new", "future", "build"])) {
+      themeHints = "Focus on innovation, creativity, and forward-thinking concepts. ";
+    }
+
     // Build image generation prompt
-    const imagePrompt = `Create an image for a ${channel} post about: "${plainContent.substring(0, 200)}${plainContent.length > 200 ? "..." : ""}"
+    const imagePrompt = `Create an image for a ${channel} post about: "${contentPreview}${contentPreview.length > 300 ? "..." : ""}"
 
+    Visual theme: ${themeHints}
     Style guidelines: ${CHANNEL_IMAGE_PROMPTS[channel] || "Professional and engaging"}
-    ${plainPrompt ? `Additional context: ${plainPrompt}` : ""}
+    ${plainPrompt ? `Additional notes: ${plainPrompt}` : ""}
 
-    The image should be visually appropriate for the content and the platform.`;
+    Make the image directly relevant to the content topic. The visual should enhance understanding and encourage sharing on ${channel}.`;
 
     // Generate image via Replicate
     const { url: imageUrl } = await generateImage(imagePrompt);
