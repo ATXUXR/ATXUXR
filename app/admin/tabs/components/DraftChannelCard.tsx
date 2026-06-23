@@ -40,6 +40,7 @@ export function DraftChannelCard({
   const [selectedText, setSelectedText] = useState<string>("");
   const [error, setError] = useState<string | null>(null);
   const [isGeneratingImage, setIsGeneratingImage] = useState(false);
+  const [isGeneratingAI, setIsGeneratingAI] = useState(false);
 
   const enabled = version?.enabled ?? false;
   const generatedFromMain = version?.generated_from_main ?? false;
@@ -96,8 +97,10 @@ export function DraftChannelCard({
       return;
     }
 
+    setIsGeneratingAI(true);
+    setError(null);
+
     try {
-      setError(null);
       const response = await fetch(
         `/api/admin/calendar/draft/${draftId}/generate`,
         {
@@ -118,6 +121,8 @@ export function DraftChannelCard({
       const errorMsg = err instanceof Error ? err.message : "Failed to generate content";
       setError(errorMsg);
       console.error("Generation error:", err);
+    } finally {
+      setIsGeneratingAI(false);
     }
   };
 
@@ -256,7 +261,7 @@ export function DraftChannelCard({
             />
 
             {/* Loading message */}
-            {(isGeneratingImage || isGenerating === true) && (
+            {(isGeneratingImage || isGeneratingAI) && (
               <div
                 style={{
                   marginTop: 8,
@@ -338,7 +343,7 @@ export function DraftChannelCard({
               {mainContent && (
                 <Btn
                   onClick={handleGenerateWithError}
-                  disabled={isGenerating || !draftId}
+                  disabled={isGeneratingAI || !draftId}
                   variant="secondary"
                   size="sm"
                   title={!draftId ? "Save draft first to generate content" : "Generate channel-specific content from main content"}
@@ -348,7 +353,7 @@ export function DraftChannelCard({
                     size={14}
                     style={{ marginRight: 4 }}
                   />
-                  {isGenerating ? "Generating..." : "Generate via AI"}
+                  {isGeneratingAI ? "Generating..." : "Generate via AI"}
                 </Btn>
               )}
 

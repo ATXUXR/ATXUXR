@@ -25,25 +25,25 @@ async function generateViaReplicate(prompt: string): Promise<string> {
     throw new Error("REPLICATE_API_KEY not set");
   }
 
-  // Use model identifier instead of specific version - Replicate will use the latest
-  const model = "black-forest-labs/flux-pro";
-
-  const response = await fetch("https://api.replicate.com/v1/predictions", {
-    method: "POST",
-    headers: {
-      Authorization: `Token ${process.env.REPLICATE_API_KEY}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      model,
-      input: {
-        prompt,
-        aspect_ratio: "16:9",
-        output_format: "jpg",
-        num_outputs: 1,
+  // Use model endpoint format: POST to model-specific prediction endpoint
+  const response = await fetch(
+    "https://api.replicate.com/v1/models/black-forest-labs/flux-pro/predictions",
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Token ${process.env.REPLICATE_API_KEY}`,
+        "Content-Type": "application/json",
       },
-    }),
-  });
+      body: JSON.stringify({
+        input: {
+          prompt,
+          aspect_ratio: "16:9",
+          output_format: "jpg",
+          num_outputs: 1,
+        },
+      }),
+    }
+  );
 
   if (!response.ok) {
     const err = await response.json().catch(() => ({}));
