@@ -11,7 +11,7 @@ import {
   type CalendarDraftWithVersions,
   type Channel,
 } from "@/lib/content-calendar";
-import { DraftChannelCard } from "./DraftChannelCard";
+import { ChannelTabs } from "./ChannelTabs";
 import { RichTextEditor } from "./RichTextEditor";
 
 interface DraftEditorProps {
@@ -399,7 +399,7 @@ export function DraftEditor({
         }}
       />
 
-      {/* Channel cards */}
+      {/* Channel tabs */}
       <h3
         style={{
           margin: "24px 0 16px",
@@ -413,38 +413,27 @@ export function DraftEditor({
         Channel Versions
       </h3>
 
-      <div>
-        {CHANNELS.map((channel) => {
-          const version = versions.find((v) => v.channel === channel);
-          return (
-            <DraftChannelCard
-              key={channel}
-              version={version || null}
-              channel={channel}
-              mainContent={mainContent}
-              draftId={draftIdRef.current}
-              onToggle={(enabled) => handleToggleChannel(channel, enabled)}
-              onUpdateContent={(content, notes) =>
-                handleUpdateChannelContent(channel, content, notes)
-              }
-              onGenerateContent={() => handleGenerateContent(channel)}
-              onImageGenerated={(url) => {
-                // Refresh version with new image
-                setVersions((prev) => {
-                  const idx = prev.findIndex((v) => v.channel === channel);
-                  if (idx >= 0) {
-                    const next = [...prev];
-                    next[idx] = { ...next[idx], image_url: url };
-                    return next;
-                  }
-                  return prev;
-                });
-              }}
-              isGenerating={isGenerating === channel}
-            />
-          );
-        })}
-      </div>
+      <ChannelTabs
+        versions={versions}
+        mainContent={mainContent}
+        draftId={draftIdRef.current}
+        onToggle={handleToggleChannel}
+        onUpdateContent={handleUpdateChannelContent}
+        onGenerateContent={handleGenerateContent}
+        onImageGenerated={(channel, url) => {
+          // Refresh version with new image
+          setVersions((prev) => {
+            const idx = prev.findIndex((v) => v.channel === channel);
+            if (idx >= 0) {
+              const next = [...prev];
+              next[idx] = { ...next[idx], image_url: url };
+              return next;
+            }
+            return prev;
+          });
+        }}
+        isGenerating={isGenerating}
+      />
 
       {/* Action buttons */}
       <div
