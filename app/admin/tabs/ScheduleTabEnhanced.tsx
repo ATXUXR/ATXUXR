@@ -16,6 +16,29 @@ interface ScheduledPost {
   status: string;
 }
 
+interface PublishedPost {
+  id: string;
+  title: string;
+  created_at: string;
+  status: "published" | "pending" | "rejected";
+}
+
+interface CalendarEvent {
+  id: string;
+  title: string;
+  starts_at: string;
+  kind: "CONNECT" | "REFLECT" | "LEARN";
+}
+
+interface CalendarItem {
+  id: string;
+  title: string;
+  date: string;
+  type: "scheduled" | "published" | "event";
+  pillar?: string;
+  kind?: string;
+}
+
 interface CadenceMetric {
   pillar: string;
   lastPostDate: string | null;
@@ -36,7 +59,7 @@ const PILLAR_COLORS: Record<string, { bg: string; fg: string; dot: string }> = {
 
 export function ScheduleTabEnhanced() {
   const [currentMonth, setCurrentMonth] = useState(new Date());
-  const [posts, setPosts] = useState<ScheduledPost[]>([]);
+  const [items, setItems] = useState<CalendarItem[]>([]);
   const [cadence, setCadence] = useState<CadenceMetric[]>([]);
   const [suggestions, setSuggestions] = useState<SmartSuggestion[]>([]);
   const [loading, setLoading] = useState(true);
@@ -56,15 +79,54 @@ export function ScheduleTabEnhanced() {
 
   const fetchData = async () => {
     try {
-      const [postsRes, cadenceRes] = await Promise.all([
+      const [scheduledRes, publishedRes, eventsRes, cadenceRes] = await Promise.all([
         fetch("/api/admin/calendar/scheduled"),
+        fetch("/api/admin/calendar/published"),
+        fetch("/api/admin/calendar/events"),
         fetch("/api/admin/calendar/cadence"),
       ]);
 
-      if (postsRes.ok) {
-        const data = await postsRes.json();
-        setPosts(data.posts || []);
+      const allItems: CalendarItem[] = [];
+
+      if (scheduledRes.ok) {
+        const data = await scheduledRes.json();
+        (data.posts || []).forEach((post: ScheduledPost) => {
+          allItems.push({
+            id: post.id,
+            title: post.title,
+            date: post.scheduledDate,
+            type: "scheduled",
+            pillar: post.pillar,
+          });
+        });
       }
+
+      if (publishedRes.ok) {
+        const data = await publishedRes.json();
+        (data || []).forEach((post: PublishedPost) => {
+          allItems.push({
+            id: post.id,
+            title: post.title,
+            date: post.created_at,
+            type: "published",
+          });
+        });
+      }
+
+      if (eventsRes.ok) {
+        const data = await eventsRes.json();
+        (data || []).forEach((event: CalendarEvent) => {
+          allItems.push({
+            id: event.id,
+            title: event.title,
+            date: event.starts_at,
+            type: "event",
+            kind: event.kind,
+          });
+        });
+      }
+
+      setItems(allItems);
 
       if (cadenceRes.ok) {
         const data = await cadenceRes.json();
@@ -85,11 +147,11 @@ export function ScheduleTabEnhanced() {
     return new Date(date.getFullYear(), date.getMonth(), 1).getDay();
   };
 
-  const getPostsForDate = (day: number) => {
+  const getItemsForDate = (day: number) => {
     const dateStr = `${currentMonth.getFullYear()}-${String(
       currentMonth.getMonth() + 1
     ).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
-    return posts.filter((p) => p.scheduledDate?.startsWith(dateStr));
+    return items.filter((item) => item.date?.startsWith(dateStr));
   };
 
   const handlePrevMonth = () => {
@@ -140,7 +202,7 @@ export function ScheduleTabEnhanced() {
             <div key={`empty-${i}`} style={{ background: "var(--bg)", minHeight: 100, borderRight: "1px solid var(--border)", borderBottom: "1px solid var(--border)" }} />
           ))}
           {days.map((day) => {
-            const dayPosts = getPostsForDate(day);
+            const dayItems = getItemsForDate(day);
             return (
               <div
                 key={day}
@@ -156,33 +218,64 @@ export function ScheduleTabEnhanced() {
               >
                 <div style={{ fontWeight: 600, fontSize: 12, marginBottom: 4 }}>{day}</div>
                 <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
-                  {dayPosts.map((post) => {
-                    const colors = PILLAR_COLORS[post.pillar || ""] || {
-                      bg: "var(--orange-50)",
-                      fg: "var(--orange-700)",
-                      dot: "var(--orange-600)",
-                    };
+                  {dayItems.map((item) => {
+                    let itemStyle: React.CSSProperties;
+                    let badge = "";
+
+                    if (item.type === "scheduled") {
+                      const colors = PILLAR_COLORS[item.pillar || ""] || {
+                        bg: "var(--orange-50)",
+                        fg: "var(--orange-700)",
+                        dot: "var(--orange-600)",
+                      };
+                      itemStyle = {
+                        background: colors.bg,
+                        color: colors.fg,
+                        borderLeft: `2px solid ${colors.dot}`,
+                      };
+                      badge = "📅";
+                    } else if (item.type === "published") {
+                      itemStyle = {
+                        background: "var(--success-bg)",
+                        color: "var(--success)",
+                        borderLeft: "2px solid var(--success)",
+                      };
+                      badge = "✓";
+                    } else {
+                      itemStyle = {
+                        background: "var(--blue-50)",
+                        color: "var(--blue-700)",
+                        borderLeft: "2px solid var(--blue-600)",
+                      };
+                      badge = "🎯";
+                    }
+
                     return (
                       <div
-                        key={post.id}
-                        onMouseEnter={() => setHoveredPost(post.id)}
+                        key={item.id}
+                        onMouseEnter={() => setHoveredPost(item.id)}
                         onMouseLeave={() => setHoveredPost(null)}
                         style={{
-                          background: colors.bg,
+                          ...itemStyle,
                           padding: "3px 6px",
                           borderRadius: 3,
                           fontSize: 10,
-                          color: colors.fg,
                           overflow: "hidden",
                           textOverflow: "ellipsis",
                           whiteSpace: "nowrap",
-                          cursor: "grab",
-                          opacity: hoveredPost === post.id ? 0.8 : 1,
+                          cursor: "default",
+                          opacity: hoveredPost === item.id ? 0.85 : 1,
                           transition: "opacity 200ms",
-                        }}
-                        title={post.title}
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 3,
+                        } as React.CSSProperties}
+                        title={`${badge} ${item.title} (${item.type})`}
                       >
-                        {post.title}
+                        <span style={{ fontSize: 8 }}>{badge}</span>
+                        <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                          {item.title}
+                        </span>
                       </div>
                     );
                   })}
