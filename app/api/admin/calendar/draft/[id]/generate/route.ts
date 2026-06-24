@@ -130,7 +130,7 @@ export async function POST(
     const plainTextContent = htmlToPlainText(draft.main_content);
 
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 120000); // 120 second timeout
+    const timeoutId = setTimeout(() => controller.abort(), 25000); // 25 second timeout (Netlify Pro limit)
 
     const response = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
@@ -142,7 +142,7 @@ export async function POST(
       signal: controller.signal,
       body: JSON.stringify({
         model: "claude-opus-4-6",
-        max_tokens: 2000,
+        max_tokens: 1000,
         messages: [
           {
             role: "user",

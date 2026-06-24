@@ -54,17 +54,10 @@ async function generateViaHuggingFace(prompt: string): Promise<string> {
   }
 
   // Hugging Face returns image as blob
-  const blob = await response.blob();
+  const buffer = await response.arrayBuffer();
 
-  // Convert blob to base64 data URL
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      const base64 = reader.result as string;
-      resolve(base64);
-    };
-    reader.onerror = reject;
-    reader.readAsDataURL(blob);
-  });
+  // Convert to base64
+  const base64 = Buffer.from(buffer).toString("base64");
+  return `data:image/jpeg;base64,${base64}`;
 }
 
