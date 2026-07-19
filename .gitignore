@@ -25,5 +25,11 @@ out/
 # IDE
 .idea/
 .vscode/
-google-credentials.json
-google-credentials.json
+
+# Secrets / credentials — never commit these
+google-credentials*.json
+*.credentials.json
+service-account*.json
+
+# Local scratch for staged-for-deletion files
+_to_delete/
