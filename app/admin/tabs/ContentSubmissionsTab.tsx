@@ -89,29 +89,34 @@ export function ContentSubmissionsTab({
   ) => {
     setActionLoading(id);
     try {
-      if (type === "blog") {
-        const res = await fetch("/api/admin/blog-submissions/review", {
+      let res: Response;
+      if (action === "approve") {
+        // Accept into the drafts queue as 'drafting' — does NOT publish.
+        const url =
+          type === "blog"
+            ? "/api/admin/blog-submissions/add-to-calendar"
+            : "/api/admin/posts/to-draft";
+        res = await fetch(url, {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ id }),
+        });
+      } else if (type === "blog") {
+        res = await fetch("/api/admin/blog-submissions/review", {
           method: "POST",
           headers: { "content-type": "application/json" },
           body: JSON.stringify({ id, action, reason }),
         });
-        if (!res.ok) {
-          const d = await res.json().catch(() => ({}));
-          throw new Error(d?.error || "Review failed");
-        }
       } else {
-        const res = await fetch("/api/admin/posts", {
+        res = await fetch("/api/admin/posts", {
           method: "POST",
           headers: { "content-type": "application/json" },
-          body: JSON.stringify({
-            ids: [id],
-            action: action === "approve" ? "approve" : "reject",
-          }),
+          body: JSON.stringify({ ids: [id], action: "reject" }),
         });
-        if (!res.ok) {
-          const d = await res.json().catch(() => ({}));
-          throw new Error(d?.error || "Review failed");
-        }
+      }
+      if (!res.ok) {
+        const d = await res.json().catch(() => ({}));
+        throw new Error(d?.error || "Action failed");
       }
       router.refresh();
       setOpen(null);
@@ -486,18 +491,8 @@ function SubmissionDrawer({
                 disabled={actionLoading === open.id}
               >
                 <Icon name="check" size={14} style={{ marginRight: 4 }} />
-                Approve for Review
+                Approve to Drafts
               </Btn>
-              {isBlog && (
-                <Btn
-                  onClick={() => onAddToCalendar(open.id)}
-                  variant="secondary"
-                  disabled={actionLoading === open.id}
-                >
-                  <Icon name="calendar" size={14} style={{ marginRight: 4 }} />
-                  Add to Calendar
-                </Btn>
-              )}
             </>
           )}
           <Btn
