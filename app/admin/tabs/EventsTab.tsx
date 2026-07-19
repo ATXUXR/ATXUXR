@@ -10,13 +10,14 @@ import { formatDate } from "@/lib/utils";
 import { EmptyState } from "./SubmissionsTab";
 import { EventEditor } from "./events/EventEditor";
 import { InviteComposer } from "./events/InviteComposer";
-import type { AdminMember, EventFull, SignupRow } from "@/lib/admin";
+import type { AdminMember, EventFull, RsvpRow, SignupRow } from "@/lib/admin";
 
 interface Props {
   events: EventFull[];
   signups: SignupRow[];
   organizers: AdminMember[];
   members: AdminMember[];
+  rsvps: RsvpRow[];
 }
 
 type Mode =
@@ -31,13 +32,20 @@ const KIND_TONE = {
   LEARN: "flame",
 } as const;
 
-export function EventsTab({ events, signups, organizers, members }: Props) {
+export function EventsTab({ events, signups, organizers, members, rsvps }: Props) {
   const router = useRouter();
   const [, startTransition] = useTransition();
   const [mode, setMode] = useState<Mode>({ kind: "list" });
   const [err, setErr] = useState<string | null>(null);
 
   const refresh = () => startTransition(() => router.refresh());
+
+  const rsvpsByEvent = new Map<string, RsvpRow[]>();
+  for (const r of rsvps) {
+    const arr = rsvpsByEvent.get(r.event_id) || [];
+    arr.push(r);
+    rsvpsByEvent.set(r.event_id, arr);
+  }
 
   const deleteEvent = async (id: string, title: string) => {
     if (!confirm(`Delete "${title}"? This removes all RSVPs too.`)) return;
@@ -269,9 +277,76 @@ export function EventsTab({ events, signups, organizers, members }: Props) {
                     Delete
                   </Btn>
                 </div>
+
+                <EventRsvps rsvps={rsvpsByEvent.get(e.id) || []} />
               </div>
             );
           })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function EventRsvps({ rsvps }: { rsvps: RsvpRow[] }) {
+  const [open, setOpen] = useState(false);
+  const guests = rsvps.reduce((sum, r) => sum + (r.guests || 0), 0);
+  const total = rsvps.length + guests;
+
+  return (
+    <div
+      style={{
+        flexBasis: "100%",
+        borderTop: "1px solid var(--border)",
+        paddingTop: 12,
+        marginTop: 4,
+      }}
+    >
+      <button
+        onClick={() => setOpen((v) => !v)}
+        disabled={rsvps.length === 0}
+        style={{
+          display: "inline-flex",
+          alignItems: "center",
+          gap: 6,
+          background: "transparent",
+          border: "none",
+          padding: 0,
+          fontSize: 13,
+          fontWeight: 600,
+          color: rsvps.length ? "var(--primary)" : "var(--fg-muted)",
+          cursor: rsvps.length ? "pointer" : "default",
+        }}
+      >
+        <Icon name={open ? "chevron-down" : "chevron-right"} size={16} />
+        {rsvps.length} RSVP{rsvps.length === 1 ? "" : "s"}
+        {guests > 0 ? ` · ${guests} guest${guests === 1 ? "" : "s"} · ${total} total` : ""}
+      </button>
+
+      {open && rsvps.length > 0 && (
+        <div style={{ marginTop: 10, display: "flex", flexDirection: "column", gap: 6 }}>
+          {rsvps.map((r) => (
+            <div
+              key={r.id}
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                gap: 12,
+                fontSize: 13,
+                padding: "6px 10px",
+                background: "var(--bg)",
+                borderRadius: "var(--radius-sm)",
+              }}
+            >
+              <span style={{ fontWeight: 500 }}>
+                {r.name}
+                {r.guests > 0 ? ` (+${r.guests})` : ""}
+              </span>
+              <a href={`mailto:${r.email}`} style={{ color: "var(--fg-muted)" }}>
+                {r.email}
+              </a>
+            </div>
+          ))}
         </div>
       )}
     </div>

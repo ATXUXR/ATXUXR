@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { NextResponse } from "next/server";
+import { getResend, EMAIL_FROM } from "@/lib/resend";
 
 interface NotificationPayload {
   type: "scheduled" | "published" | "overdue";
@@ -12,58 +13,55 @@ interface NotificationPayload {
 export async function POST(req: Request) {
   try {
     const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user)
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const payload: NotificationPayload = await req.json();
 
-    // Build email body based on type
     let emailSubject = "";
     let emailBody = "";
-
     switch (payload.type) {
       case "scheduled":
-        emailSubject = `📅 Content Scheduled: ${payload.title}`;
-        emailBody = `
-Your content has been scheduled for publication:
-
-📝 Title: ${payload.title}
-🏷️ Pillar: ${payload.pillar}
-📅 Publish Date: ${new Date(payload.scheduledDate).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}
-
-You'll receive a reminder notification when the content is published.
-        `.trim();
+        emailSubject = `Scheduled: ${payload.title}`;
+        emailBody = `"${payload.title}" (${payload.pillar}) is scheduled to publish on ${new Date(
+          payload.scheduledDate,
+        ).toLocaleDateString("en-US", {
+          month: "long",
+          day: "numeric",
+          year: "numeric",
+        })}.`;
         break;
       case "published":
-        emailSubject = `✅ Content Published: ${payload.title}`;
-        emailBody = `
-Your scheduled content has been published!
-
-📝 Title: ${payload.title}
-🏷️ Pillar: ${payload.pillar}
-📅 Published: ${new Date(payload.scheduledDate).toLocaleDateString()}
-
-Congratulations on another great contribution to ATX UXR!
-        `.trim();
+        emailSubject = `Published: ${payload.title}`;
+        emailBody = `"${payload.title}" (${payload.pillar}) is now live on the ATX UXR blog.`;
         break;
       case "overdue":
-        emailSubject = `⚠️ Pillar Update Needed: ${payload.pillar}`;
-        emailBody = `
-The "${payload.pillar}" pillar hasn't been updated recently and is falling behind schedule.
-
-Consider scheduling new content for this pillar to maintain consistent cadence.
-
-Visit your content calendar to schedule a new post.
-        `.trim();
+        emailSubject = `Pillar update needed: ${payload.pillar}`;
+        emailBody = `The "${payload.pillar}" pillar is falling behind its usual cadence. Consider scheduling a new post.`;
         break;
     }
 
-    // Log the notification (in production, would send actual email via SendGrid/Resend/etc)
-    console.log(`[NOTIFICATION] ${payload.type.toUpperCase()} - To: ${payload.recipientEmail}`);
-    console.log(`Subject: ${emailSubject}`);
-    console.log(`Body:\n${emailBody}`);
+    // Best-effort send. Email is never a hard dependency — the audit row is
+    // written either way, and a missing RESEND_API_KEY just skips the send.
+    let sentAt: string | null = null;
+    const resend = getResend();
+    if (resend && payload.recipientEmail) {
+      try {
+        await resend.emails.send({
+          from: EMAIL_FROM,
+          to: payload.recipientEmail,
+          subject: emailSubject,
+          text: emailBody,
+        });
+        sentAt = new Date().toISOString();
+      } catch (e) {
+        console.error("notify: email send failed", e);
+      }
+    }
 
-    // Store notification in database for audit trail
     const { error: logError } = await supabase.from("notifications").insert({
       type: payload.type,
       recipient_email: payload.recipientEmail,
@@ -74,15 +72,12 @@ Visit your content calendar to schedule a new post.
         title: payload.title,
         scheduledDate: payload.scheduledDate,
       },
+      sent_at: sentAt,
       created_at: new Date().toISOString(),
     });
+    if (logError) console.error("Error logging notification:", logError);
 
-    if (logError) {
-      console.error("Error logging notification:", logError);
-      // Don't fail the request if logging fails
-    }
-
-    return NextResponse.json({ success: true, notificationId: null });
+    return NextResponse.json({ success: true, emailed: sentAt !== null });
   } catch (err) {
     console.error("Notification error:", err);
     return NextResponse.json({ error: "Internal error" }, { status: 500 });

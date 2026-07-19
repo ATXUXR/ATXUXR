@@ -15,7 +15,7 @@ export async function POST(req: Request) {
         title,
         content,
         pillar,
-        status: "draft",
+        status: "drafting",
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
         metadata: { fromBlogSubmission },

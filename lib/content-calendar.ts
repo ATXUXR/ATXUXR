@@ -59,8 +59,8 @@ export const DRAFT_STATUSES = [
 export type DraftStatus = (typeof DRAFT_STATUSES)[number];
 
 export const CALENDAR_DRAFT_STATUSES = [
-  "draft",
-  "reviewing",
+  "drafting",
+  "ready",
   "scheduled",
   "published",
 ] as const;

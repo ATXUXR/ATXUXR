@@ -4,7 +4,6 @@ import { Btn } from "@/components/ui/Button";
 import { Icon } from "@/components/ui/Icon";
 import { Eyebrow } from "@/components/ui/Eyebrow";
 import { getAdminBundle } from "@/lib/admin";
-import { getCalendar } from "@/lib/content-calendar-server";
 import { AdminShell } from "./AdminShell";
 
 export const metadata = { title: "Admin" };
@@ -17,13 +16,12 @@ export default async function AdminPage({ searchParams }: PageProps) {
   const sp = await searchParams;
   const tab = (sp.tab ?? "content-submissions") as
     | "content-submissions"
+    | "content-schedule"
+    | "calendar"
     | "events"
     | "share"
-    | "calendar"
-    | "drafts"
     | "members"
     | "signups"
-    | "rsvps"
     | "volunteers"
     | "feedback"
     | "email"
@@ -63,10 +61,9 @@ export default async function AdminPage({ searchParams }: PageProps) {
     );
   }
 
-  const [bundle, calendar, { data: blogSubmissions }, { data: draftsRaw }] =
+  const [bundle, { data: blogSubmissions }, { data: draftsRaw }] =
     await Promise.all([
       getAdminBundle({ analyticsDays: days }),
-      getCalendar(),
       supabase
         .from("blog_submissions")
         .select("*")
@@ -77,7 +74,6 @@ export default async function AdminPage({ searchParams }: PageProps) {
         .order("updated_at", { ascending: false }),
     ]);
 
-  // Transform drafts to include versions
   const drafts = (draftsRaw || []).map((d: any) => ({
     ...d,
     versions: d.calendar_draft_versions || [],
@@ -106,9 +102,7 @@ export default async function AdminPage({ searchParams }: PageProps) {
             padding: "40px 28px 30px",
           }}
         >
-          <Eyebrow
-            style={{ marginBottom: 12, color: "var(--orange-300)" }}
-          >
+          <Eyebrow style={{ marginBottom: 12, color: "var(--orange-300)" }}>
             ADMIN · ORGANIZER TOOLS
           </Eyebrow>
           <h1
@@ -155,7 +149,6 @@ export default async function AdminPage({ searchParams }: PageProps) {
         tab={tab}
         meId={me.id}
         days={days}
-        calendar={calendar}
         drafts={drafts}
         formSubmissions={bundle.pending}
         blogSubmissions={blogSubmissions || []}
@@ -191,13 +184,7 @@ function NotAdmin({ title, body }: { title: string; body: string }) {
           <Icon name="shield-x" size={30} />
         </span>
         <h2 style={{ fontSize: 26, margin: "0 0 10px" }}>{title}</h2>
-        <p
-          style={{
-            fontSize: 16,
-            color: "var(--fg-muted)",
-            margin: "0 0 22px",
-          }}
-        >
+        <p style={{ fontSize: 16, color: "var(--fg-muted)", margin: "0 0 22px" }}>
           {body}
         </p>
         <a href="/" style={{ textDecoration: "none" }}>
@@ -263,9 +250,7 @@ function Stat({
         >
           {value}
         </div>
-        <div
-          style={{ fontSize: 13.5, color: "var(--fg-muted)", marginTop: 4 }}
-        >
+        <div style={{ fontSize: 13.5, color: "var(--fg-muted)", marginTop: 4 }}>
           {label}
         </div>
       </div>

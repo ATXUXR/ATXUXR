@@ -5,29 +5,28 @@ import { useSearchParams } from "next/navigation";
 import type { AdminBundle } from "@/lib/admin";
 import { MembersTab } from "./tabs/MembersTab";
 import { SignupsTab } from "./tabs/SignupsTab";
-import { RsvpsTab } from "./tabs/RsvpsTab";
 import { VolunteersTab } from "./tabs/VolunteersTab";
 import { FeedbackTab } from "./tabs/FeedbackTab";
 import { EmailTab } from "./tabs/EmailTab";
 import { EventsTab } from "./tabs/EventsTab";
 import { ShareTab } from "./tabs/ShareTab";
-import { CalendarTab } from "./tabs/CalendarTab";
-import { DraftsTab } from "./tabs/DraftsTab";
-import { ScheduleTabEnhanced } from "./tabs/ScheduleTabEnhanced";
-import { ContentSubmissionsTab, type BlogSubmission } from "./tabs/ContentSubmissionsTab";
+import { ContentScheduleTab } from "./tabs/ContentScheduleTab";
+import { CalendarViewTab } from "./tabs/CalendarViewTab";
+import {
+  ContentSubmissionsTab,
+  type BlogSubmission,
+} from "./tabs/ContentSubmissionsTab";
 import { AnalyticsTab } from "./tabs/AnalyticsTab";
-import type { CalendarRow, CalendarDraftWithVersions } from "@/lib/content-calendar";
+import type { CalendarDraftWithVersions } from "@/lib/content-calendar";
 
 type TabKey =
   | "content-submissions"
+  | "content-schedule"
+  | "calendar"
   | "events"
   | "share"
-  | "calendar"
-  | "schedule"
-  | "drafts"
   | "members"
   | "signups"
-  | "rsvps"
   | "volunteers"
   | "feedback"
   | "email"
@@ -38,13 +37,20 @@ interface Props {
   tab: TabKey;
   meId: string;
   days: number;
-  calendar: CalendarRow[];
   drafts: CalendarDraftWithVersions[];
   formSubmissions: any[];
   blogSubmissions: BlogSubmission[];
 }
 
-export function AdminShell({ bundle, tab, meId, days, calendar, drafts, formSubmissions, blogSubmissions }: Props) {
+export function AdminShell({
+  bundle,
+  tab,
+  meId,
+  days,
+  drafts,
+  formSubmissions,
+  blogSubmissions,
+}: Props) {
   const params = useSearchParams();
 
   const tabs: Array<{ key: TabKey; label: string; count?: number }> = [
@@ -55,14 +61,16 @@ export function AdminShell({ bundle, tab, meId, days, calendar, drafts, formSubm
         formSubmissions.length +
         blogSubmissions.filter((s) => s.status === "pending").length,
     },
-    { key: "drafts", label: "Content Drafts", count: drafts.filter((d) => d.status === "draft").length },
-    { key: "calendar", label: "Content Schedule", count: calendar.length },
-    { key: "schedule", label: "Calendar" },
+    {
+      key: "content-schedule",
+      label: "Content Schedule",
+      count: drafts.filter((d) => d.status !== "published").length,
+    },
+    { key: "calendar", label: "Calendar" },
     { key: "events", label: "Events", count: bundle.eventsFull.length },
     { key: "share", label: "Announcements" },
     { key: "members", label: "Members", count: bundle.members.length },
     { key: "signups", label: "Sign-ups", count: bundle.signups.length },
-    { key: "rsvps", label: "RSVPs", count: bundle.rsvps.length },
     { key: "volunteers", label: "Volunteers", count: bundle.volunteers.length },
     { key: "feedback", label: "Feedback", count: bundle.feedback.length },
     { key: "email", label: "Email", count: bundle.emails.length },
@@ -124,9 +132,7 @@ export function AdminShell({ bundle, tab, meId, days, calendar, drafts, formSubm
                       fontWeight: 700,
                       padding: "2px 7px",
                       borderRadius: 999,
-                      background: on
-                        ? "var(--orange-50)"
-                        : "var(--surface-sunk)",
+                      background: on ? "var(--orange-50)" : "var(--surface-sunk)",
                       color: on ? "var(--orange-700)" : "var(--fg-subtle)",
                     }}
                   >
@@ -167,12 +173,17 @@ export function AdminShell({ bundle, tab, meId, days, calendar, drafts, formSubm
               members={bundle.members}
             />
           )}
+          {tab === "content-schedule" && (
+            <ContentScheduleTab initialDrafts={drafts} />
+          )}
+          {tab === "calendar" && <CalendarViewTab />}
           {tab === "events" && (
             <EventsTab
               events={bundle.eventsFull}
               signups={bundle.signups}
               organizers={bundle.members.filter((m) => m.admin)}
               members={bundle.members}
+              rsvps={bundle.rsvps}
             />
           )}
           {tab === "share" && (
@@ -183,16 +194,8 @@ export function AdminShell({ bundle, tab, meId, days, calendar, drafts, formSubm
               members={bundle.members}
             />
           )}
-          {tab === "calendar" && <CalendarTab rows={calendar} />}
-          {tab === "schedule" && <ScheduleTabEnhanced />}
-          {tab === "drafts" && <DraftsTab drafts={drafts} />}
-          {tab === "members" && (
-            <MembersTab members={bundle.members} meId={meId} />
-          )}
+          {tab === "members" && <MembersTab members={bundle.members} meId={meId} />}
           {tab === "signups" && <SignupsTab signups={bundle.signups} />}
-          {tab === "rsvps" && (
-            <RsvpsTab rsvps={bundle.rsvps} events={bundle.events} />
-          )}
           {tab === "volunteers" && (
             <VolunteersTab volunteers={bundle.volunteers} />
           )}
