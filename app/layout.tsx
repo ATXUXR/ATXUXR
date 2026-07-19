@@ -58,7 +58,7 @@ export default function RootLayout({
         />
         <link
           rel="icon"
-          href="/assets/mark-skyline-orange.png"
+          href="/assets/mark-skyline-square.png"
           type="image/png"
         />
       </head>
