@@ -40,11 +40,11 @@ create index if not exists posts_pillar_idx on public.posts (pillar);
 --    old: draft / reviewing / scheduled / published
 --    new: drafting / ready / scheduled / published
 alter table public.calendar_drafts alter column status drop default;
+-- drop the old constraint BEFORE remapping values, else the update violates it
+alter table public.calendar_drafts drop constraint if exists calendar_drafts_status_check;
 
 update public.calendar_drafts set status = 'drafting' where status = 'draft';
 update public.calendar_drafts set status = 'ready'    where status = 'reviewing';
-
-alter table public.calendar_drafts drop constraint if exists calendar_drafts_status_check;
 alter table public.calendar_drafts
   add constraint calendar_drafts_status_check
     check (status in ('drafting','ready','scheduled','published'));
